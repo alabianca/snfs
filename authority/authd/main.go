@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 
@@ -39,7 +40,12 @@ func main() {
 	}
 
 	vaultToken := os.Getenv("VAULT_DEV_TOKEN")
-	fmt.Println(vaultToken)
+
+	http.Handle("/certificate", certificate(vaultToken))
+
+	if err := http.ListenAndServe(getListenAddr(), nil); err != nil {
+		log.Println(err)
+	}
 
 	client := &http.Client{}
 	csr := &CSR{
@@ -83,5 +89,40 @@ func main() {
 	fmt.Println(csrResp.Data.Certificate)
 	fmt.Println(csrResp.Data.PrivateKey)
 	fmt.Println(csrResp.Data.IssuingCA)
+
+}
+
+func getListenAddr() string {
+	port := os.Getenv("PORT")
+	return ":" + port
+}
+
+func certificate(vaultToken string) http.HandlerFunc {
+	return func(res http.ResponseWriter, req *http.Request) {
+
+	}
+}
+
+func requestBodyDecoder(request *http.Request) (*json.Decoder, error) {
+	body, err := ioutil.ReadAll(request.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	request.Body = ioutil.NopCloser(bytes.NewBuffer(body))
+
+	return json.NewDecoder(ioutil.NopCloser(bytes.NewBuffer(body))), nil
+
+}
+
+func parseRequestBody(request *http.Request) (CSR, error) {
+	decoder, err := requestBodyDecoder(request)
+	if err != nil {
+		return CSR{}, err
+	}
+
+	var csr CSR
+	decoder.Decode(&csr)
+	return csr, err
 
 }
