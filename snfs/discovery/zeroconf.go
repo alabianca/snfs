@@ -15,8 +15,8 @@ const (
 	ZeroConfDomain = ".local"
 )
 
-// MdnsServer is a service that is discoverable in the local network
-type MdnsServer struct {
+// MdnsService is a service that is discoverable in the local network
+type MdnsService struct {
 	InstanceName string
 	Port         int
 	Ifaces       []net.Interface
@@ -27,11 +27,11 @@ type MdnsServer struct {
 }
 
 // Option is a variadic configuration function to be passed to Server(option)
-type Option func(s *MdnsServer)
+type Option func(s *MdnsService)
 
 // Server creates a new service that is disoverable within the local network
-func Server(o ...Option) *MdnsServer {
-	mdns := MdnsServer{
+func Service(o ...Option) *MdnsService {
+	mdns := MdnsService{
 		InstanceName: "defaultInstanceName",
 		Port:         4200,
 		Ifaces:       nil,
@@ -47,9 +47,9 @@ func Server(o ...Option) *MdnsServer {
 	return &mdns
 }
 
-// Register registers the MdnsServer in the local network
+// Register registers the MdnsService in the local network
 // at this point the service is disoverable under the "_snfs._tcp" service
-func (mdns *MdnsServer) Register() error {
+func (mdns *MdnsService) Register() error {
 	var err error
 	mdns.server, err = zeroconf.Register(
 		mdns.InstanceName,
@@ -64,14 +64,14 @@ func (mdns *MdnsServer) Register() error {
 }
 
 // Shutdown closes all udp connections and closes the service
-func (mdns *MdnsServer) Shutdown() {
+func (mdns *MdnsService) Shutdown() {
 	if mdns.server != nil {
 		mdns.server.Shutdown()
 	}
 }
 
 // BrowseFor browses the local network for duration
-func (mdns *MdnsServer) BrowseFor(duration time.Duration) ([]*zeroconf.ServiceEntry, error) {
+func (mdns *MdnsService) BrowseFor(duration time.Duration) ([]*zeroconf.ServiceEntry, error) {
 	resolver, err := zeroconf.NewResolver(nil)
 	if err != nil {
 		return nil, err
@@ -98,4 +98,27 @@ func (mdns *MdnsServer) BrowseFor(duration time.Duration) ([]*zeroconf.ServiceEn
 
 	return out, nil
 
+}
+
+// Lookup finds a specific service instance
+func (mdns *MdnsService) Lookup(ctx context.Context, instance string, entries chan *zeroconf.ServiceEntry) error {
+	resolver, err := zeroconf.NewResolver()
+	if err != nil {
+		return err
+	}
+
+	results := make(chan *zeroconf.ServiceEntry)
+	go func(res chan *zeroconf.ServiceEntry) {
+		for s := range res {
+			if s.Instance == instance {
+				entries <- s
+			}
+		}
+
+		close(entries)
+	}(results)
+
+	resolver.Lookup(ctx, instance, ZeroConfService, ZeroConfDomain, results)
+
+	return nil
 }
