@@ -29,7 +29,7 @@ type MdnsService struct {
 // Option is a variadic configuration function to be passed to Server(option)
 type Option func(s *MdnsService)
 
-// Server creates a new service that is disoverable within the local network
+// Service creates a new service that is disoverable within the local network
 func Service(o ...Option) *MdnsService {
 	mdns := MdnsService{
 		InstanceName: "defaultInstanceName",
