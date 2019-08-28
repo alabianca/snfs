@@ -17,10 +17,10 @@ const (
 
 // MdnsService is a service that is discoverable in the local network
 type MdnsService struct {
-	InstanceName string
-	Port         int
-	Ifaces       []net.Interface
-	Text         []string
+	instanceName string
+	port         int
+	ifaces       []net.Interface
+	text         []string
 	server       *zeroconf.Server
 	service      string
 	domain       string
@@ -30,12 +30,12 @@ type MdnsService struct {
 type Option func(s *MdnsService)
 
 // Service creates a new service that is disoverable within the local network
-func Service(o ...Option) *MdnsService {
+func Service(o ...Option) MDNS {
 	mdns := MdnsService{
-		InstanceName: "defaultInstanceName",
-		Port:         4200,
-		Ifaces:       nil,
-		Text:         nil,
+		instanceName: "defaultInstanceName",
+		port:         4200,
+		ifaces:       nil,
+		text:         nil,
 		service:      ZeroConfService,
 		domain:       ZeroConfDomain,
 	}
@@ -52,12 +52,12 @@ func Service(o ...Option) *MdnsService {
 func (mdns *MdnsService) Register() error {
 	var err error
 	mdns.server, err = zeroconf.Register(
-		mdns.InstanceName,
+		mdns.instanceName,
 		mdns.service,
 		mdns.domain,
-		mdns.Port,
-		mdns.Text,
-		mdns.Ifaces,
+		mdns.port,
+		mdns.text,
+		mdns.ifaces,
 	)
 
 	return err
@@ -121,4 +121,52 @@ func (mdns *MdnsService) Lookup(ctx context.Context, instance string, entries ch
 	resolver.Lookup(ctx, instance, ZeroConfService, ZeroConfDomain, results)
 
 	return nil
+}
+
+func (mdns *MdnsService) Text() []string {
+	return mdns.text
+}
+
+func (mdns *MdnsService) SetText(t []string) {
+	mdns.text = t
+}
+
+func (mdns *MdnsService) Domain() string {
+	return mdns.domain
+}
+
+func (mdns *MdnsService) SetDomain(d string) {
+	mdns.domain = d
+}
+
+func (mdns *MdnsService) Interfaces() []net.Interface {
+	return mdns.ifaces
+}
+
+func (mdns *MdnsService) SetInterfaces(ifaces []net.Interface) {
+	mdns.ifaces = ifaces
+}
+
+func (mdns *MdnsService) Port() int {
+	return mdns.port
+}
+
+func (mdns *MdnsService) SetPort(p int) {
+	mdns.port = p
+}
+
+func (mdns *MdnsService) Instance() string {
+	return mdns.instanceName
+}
+
+func (mdns *MdnsService) SetInstance(i string) {
+	mdns.instanceName = i
+}
+
+func (mdns *MdnsService) Service() string {
+	return mdns.service
+}
+
+func (mdns *MdnsService) SetService(s string) {
+	mdns.service = s
 }
