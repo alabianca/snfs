@@ -1,14 +1,18 @@
-package snfs
+package network
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"net"
 	"strconv"
+	"time"
 )
 
 type server struct {
-	host string
-	port int
+	host        string
+	port        int
+	rootContext *bytes.Buffer
 }
 
 func (s *server) listen() error {
@@ -18,11 +22,16 @@ func (s *server) listen() error {
 		return err
 	}
 
-	_, err = l.Accept()
+	c, err := l.Accept()
 	if err != nil {
 		return err
 	}
 
 	fmt.Println("got a connection")
+	conn := Conn{
+		Conn:        c,
+		IdleTimeout: time.Second * 5,
+	}
+	io.Copy(&conn, s.rootContext)
 	return nil
 }

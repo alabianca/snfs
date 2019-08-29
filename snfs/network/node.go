@@ -1,11 +1,15 @@
-package snfs
+package network
 
 import (
+	"bytes"
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net"
 	"strconv"
 	"time"
+
+	"github.com/alabianca/snfs/util"
 
 	"github.com/grandcat/zeroconf"
 
@@ -15,11 +19,14 @@ import (
 type Option func(n *Node)
 
 type Node struct {
-	MaxTimeout  time.Duration
-	Port        int
-	Host        string
-	mdnsService discovery.MDNS
-	server      *server
+	MaxTimeout   time.Duration
+	Name         string
+	Certfificate *tls.Certificate
+	Port         int
+	Host         string
+	mdnsService  discovery.MDNS
+	server       *server
+	rootContext  string
 }
 
 func NewNode(o ...Option) *Node {
@@ -53,8 +60,9 @@ func (n *Node) Bootstrap() error {
 	}
 
 	n.server = &server{
-		host: n.Host,
-		port: n.Port,
+		host:        n.Host,
+		port:        n.Port,
+		rootContext: new(bytes.Buffer),
 	}
 
 	return nil
@@ -87,6 +95,11 @@ func (n *Node) Lookup(instance string) (*zeroconf.ServiceEntry, error) {
 	}
 
 	return res, nil
+}
+
+func (n *Node) SetRootContext(path string) error {
+	n.rootContext = path
+	return util.WriteTarball(n.server.rootContext, path)
 }
 
 // Dial attempts to connect to instance

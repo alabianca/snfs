@@ -1,8 +1,12 @@
 package util
 
 import (
+	"archive/tar"
 	"fmt"
+	"io"
 	"net"
+	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -40,4 +44,43 @@ func MyIP(network string) (net.IP, error) {
 
 	return nil, fmt.Errorf("No IP found")
 
+}
+
+func WriteTarball(writer io.Writer, dir string) error {
+	tw := tar.NewWriter(writer)
+
+	defer tw.Close()
+
+	// walk path
+	return filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		header, err := tar.FileInfoHeader(info, info.Name())
+		if err != nil {
+			return err
+		}
+
+		header.Name = path
+		if err := tw.WriteHeader(header); err != nil {
+			return err
+		}
+
+		if !info.Mode().IsRegular() {
+			return nil
+		}
+
+		f, err := os.Open(path)
+		defer f.Close()
+		if err != nil {
+			return err
+		}
+
+		if _, err := io.Copy(tw, f); err != nil {
+			return err
+		}
+
+		return nil
+	})
 }
