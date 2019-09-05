@@ -2,6 +2,7 @@ package discovery
 
 import (
 	"context"
+	"log"
 	"net"
 	"time"
 
@@ -44,6 +45,9 @@ func Service(o ...Option) MDNS {
 		opt(&mdns)
 	}
 
+	log.Printf("MDNS [Instance]: %s\n", mdns.instanceName)
+	log.Printf("MDNS [Port]: %d\n", mdns.port)
+
 	return &mdns
 }
 
@@ -60,6 +64,8 @@ func (mdns *MdnsService) Register() error {
 		mdns.ifaces,
 	)
 
+	log.Printf("MDNS [Registered] %s %d %s\n", mdns.service, mdns.port, mdns.instanceName)
+
 	return err
 }
 
@@ -67,6 +73,7 @@ func (mdns *MdnsService) Register() error {
 func (mdns *MdnsService) Shutdown() {
 	if mdns.server != nil {
 		mdns.server.Shutdown()
+		log.Printf("MDNS [Unregistered]\n")
 	}
 }
 
@@ -101,26 +108,37 @@ func (mdns *MdnsService) BrowseFor(duration time.Duration) ([]*zeroconf.ServiceE
 }
 
 // Lookup finds a specific service instance
-func (mdns *MdnsService) Lookup(ctx context.Context, instance string, entries chan *zeroconf.ServiceEntry) error {
+func (mdns *MdnsService) Lookup(ctx context.Context, instance string) ([]net.IP, error) {
 	resolver, err := zeroconf.NewResolver()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
+	childCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	var entry *zeroconf.ServiceEntry
 	results := make(chan *zeroconf.ServiceEntry)
 	go func(res chan *zeroconf.ServiceEntry) {
 		for s := range res {
 			if s.Instance == instance {
-				entries <- s
+				entry = s
+				cancel()
 			}
 		}
 
-		close(entries)
 	}(results)
 
-	resolver.Lookup(ctx, instance, ZeroConfService, ZeroConfDomain, results)
+	log.Printf("MDNS [Lookup]: %s\n", instance)
 
-	return nil
+	resolver.Lookup(childCtx, instance, ZeroConfService, ZeroConfDomain, results)
+
+	<-childCtx.Done()
+
+	if entry != nil {
+		return append(entry.AddrIPv4, entry.AddrIPv6...), nil
+	}
+
+	return nil, nil
 }
 
 func (mdns *MdnsService) Text() []string {

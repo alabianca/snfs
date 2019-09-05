@@ -10,7 +10,7 @@ import (
 
 type MDNS interface {
 	BrowseFor(duration time.Duration) ([]*zeroconf.ServiceEntry, error)
-	Lookup(ctx context.Context, instance string, entries chan *zeroconf.ServiceEntry) error
+	Lookup(ctx context.Context, instance string) ([]net.IP, error)
 	Text() []string
 	Domain() string
 	Service() string
