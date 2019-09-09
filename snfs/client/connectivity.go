@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"net"
 	"net/http"
 	"strconv"
@@ -9,9 +10,10 @@ import (
 )
 
 type ConnectivityService struct {
-	Addr      string
-	Port      int
-	discovery *discovery.Manager
+	Addr       string
+	Port       int
+	discovery  *discovery.Manager
+	httpServer *http.Server
 }
 
 func NewConnectivityService(dManager *discovery.Manager) *ConnectivityService {
@@ -28,8 +30,17 @@ func (c *ConnectivityService) SetAddr(addr string, port int) {
 func (c *ConnectivityService) REST() error {
 	addr := net.JoinHostPort(c.Addr, strconv.Itoa(c.Port))
 
-	return http.ListenAndServe(
-		addr,
-		restAPIRoutes(c),
-	)
+	c.httpServer = &http.Server{
+		Addr:    addr,
+		Handler: restAPIRoutes(c),
+	}
+
+	return c.httpServer.ListenAndServe()
+}
+
+func (c *ConnectivityService) Shutdown(ctx context.Context) error {
+	if c.httpServer != nil {
+		return c.httpServer.Shutdown(ctx)
+	}
+	return nil
 }

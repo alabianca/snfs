@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/alabianca/snfs/snfs/client"
@@ -32,4 +33,11 @@ func (s *Server) HTTPListenAndServe() error {
 
 	return s.ClientConnectivity.REST()
 
+}
+
+func (s *Server) Shutdown(ctx context.Context) error {
+	// stop mdns
+	s.DiscoveryManager.UnRegister()
+	// stop accepting connections
+	return s.ClientConnectivity.Shutdown(ctx)
 }

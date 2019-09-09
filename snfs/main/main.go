@@ -1,9 +1,15 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
+	"log"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
+	"time"
 
 	"github.com/alabianca/snfs/snfs/discovery"
 
@@ -17,6 +23,8 @@ const topLevelDomain = ".snfs.com"
 
 func main() {
 	flag.Parse()
+	done := make(chan os.Signal, 1)
+	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	addr := ""
 
 	server := server.Server{
@@ -24,15 +32,37 @@ func main() {
 		Addr: addr,
 	}
 
+	// set up discovery strategy
 	server.SetDiscoveryManager(
 		discovery.MdnsStrategy(mdnsConfig),
 	)
 
+	// Client connectivity services like http/protobuf
 	server.StartClientConnectivityService()
 
-	if err := server.HTTPListenAndServe(); err != nil {
-		panic(err)
+	// Serve in separate thread
+	go func() {
+		if err := server.HTTPListenAndServe(); err != nil {
+			panic(err)
+		}
+	}()
+
+	// Wait for termination signal to attempt graceful shutdown
+	<-done
+	// Shutdown server gracefully
+	log.Println("Server Stopped...")
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer func() {
+		// possibly more cleanup here
+		cancel()
+	}()
+
+	if err := server.Shutdown(ctx); err != nil {
+		log.Fatal("Server Shutdown failed....")
 	}
+
+	log.Println("Server Shutdown properly")
+
 }
 
 func mdnsConfig(m *discovery.MdnsService) {
