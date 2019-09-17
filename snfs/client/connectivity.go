@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"io"
 	"net"
 	"net/http"
 	"strconv"
@@ -14,11 +15,13 @@ type ConnectivityService struct {
 	Port       int
 	discovery  *discovery.Manager
 	httpServer *http.Server
+	fs         io.ReadWriter
 }
 
-func NewConnectivityService(dManager *discovery.Manager) *ConnectivityService {
+func NewConnectivityService(dManager *discovery.Manager, fs io.ReadWriter) *ConnectivityService {
 	return &ConnectivityService{
 		discovery: dManager,
+		fs:        fs,
 	}
 }
 

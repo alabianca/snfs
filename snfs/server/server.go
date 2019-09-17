@@ -3,6 +3,9 @@ package server
 import (
 	"context"
 	"fmt"
+	"log"
+
+	"github.com/alabianca/snfs/snfs/fs"
 
 	"github.com/alabianca/snfs/snfs/client"
 
@@ -14,6 +17,7 @@ type Server struct {
 	Addr               string
 	DiscoveryManager   *discovery.Manager
 	ClientConnectivity *client.ConnectivityService
+	FsManager          *fs.Manager
 }
 
 func (s *Server) SetDiscoveryManager(strategy discovery.Strategy) {
@@ -21,7 +25,7 @@ func (s *Server) SetDiscoveryManager(strategy discovery.Strategy) {
 }
 
 func (s *Server) StartClientConnectivityService() {
-	s.ClientConnectivity = client.NewConnectivityService(s.DiscoveryManager)
+	s.ClientConnectivity = client.NewConnectivityService(s.DiscoveryManager, s.FsManager)
 	s.ClientConnectivity.SetAddr(s.Addr, s.Port)
 
 }
@@ -36,6 +40,14 @@ func (s *Server) HTTPListenAndServe() error {
 }
 
 func (s *Server) Shutdown(ctx context.Context) error {
+	// cleanup any temporary files
+	defer func() {
+		log.Println("Removing Temporary Files")
+		if err := s.FsManager.Cleanup(); err != nil {
+			log.Fatal(err)
+		}
+	}()
+
 	// stop mdns
 	s.DiscoveryManager.UnRegister()
 	// stop accepting connections

@@ -11,6 +11,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/alabianca/snfs/snfs/fs"
+
 	"github.com/alabianca/snfs/snfs/discovery"
 
 	"github.com/alabianca/snfs/snfs/server"
@@ -24,12 +26,18 @@ const topLevelDomain = ".snfs.com"
 func main() {
 	flag.Parse()
 	done := make(chan os.Signal, 1)
+	httpClosed := make(chan bool)
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	addr := ""
 
 	server := server.Server{
-		Port: *port,
-		Addr: addr,
+		Port:      *port,
+		Addr:      addr,
+		FsManager: fs.NewManager(),
+	}
+
+	if err := server.FsManager.MakeTempFile(); err != nil {
+		log.Fatal(err)
 	}
 
 	// set up discovery strategy
@@ -43,7 +51,8 @@ func main() {
 	// Serve in separate thread
 	go func() {
 		if err := server.HTTPListenAndServe(); err != nil {
-			panic(err)
+			log.Println(err)
+			httpClosed <- true
 		}
 	}()
 
@@ -62,6 +71,7 @@ func main() {
 	}
 
 	log.Println("Server Shutdown properly")
+	<-httpClosed
 
 }
 
