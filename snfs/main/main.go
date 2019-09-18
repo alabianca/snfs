@@ -31,14 +31,14 @@ func main() {
 	addr := ""
 
 	server := server.Server{
-		Port:      *port,
-		Addr:      addr,
-		FsManager: fs.NewManager(),
+		Port: *port,
+		Addr: addr,
 	}
 
-	if err := server.FsManager.MakeTempFile(); err != nil {
-		log.Fatal(err)
-	}
+	// initialize file storage
+	server.MountStorage(
+		fs.NewManager(),
+	)
 
 	// set up discovery strategy
 	server.SetDiscoveryManager(
@@ -70,8 +70,8 @@ func main() {
 		log.Fatal("Server Shutdown failed....")
 	}
 
-	log.Println("Server Shutdown properly")
 	<-httpClosed
+	log.Println("Server Shutdown properly")
 
 }
 

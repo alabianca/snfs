@@ -2,6 +2,7 @@ package client
 
 import (
 	"github.com/alabianca/snfs/snfs/discovery"
+	"github.com/alabianca/snfs/snfs/fs"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/render"
@@ -21,6 +22,7 @@ func restAPIRoutes(c *ConnectivityService) *chi.Mux {
 
 	router.Route("/api/v1", func(r chi.Router) {
 		r.Mount("/mdns", mdnsRoutes(c.discovery))
+		r.Mount("/filesystem", filesystemRoutes(c.storage))
 	})
 
 	return router
@@ -32,6 +34,14 @@ func mdnsRoutes(d *discovery.Manager) *chi.Mux {
 	router.Post("/subscribe", startMDNSController(d))
 	router.Post("/unsubscribe", stopMDNSController(d))
 	router.Get("/instance/{instance}", lookupMDNSController(d))
+
+	return router
+}
+
+func filesystemRoutes(storage *fs.Manager) *chi.Mux {
+	router := chi.NewRouter()
+
+	router.Post("/context", postFile(storage))
 
 	return router
 }

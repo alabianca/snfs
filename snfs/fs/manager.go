@@ -1,55 +1,82 @@
 package fs
 
 import (
-	"fmt"
+	"archive/tar"
+	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 )
 
 const dir = "/Users/alexanderlabianca/go/src/github.com/alabianca/snfs"
 
+// Manager maintains a list of files that are currently
+// shared in the local network
 type Manager struct {
-	tempFile *os.File
+	files []string
 }
 
+// NewManager returns a Manager with zero files
 func NewManager() *Manager {
-	return &Manager{}
-
+	return &Manager{
+		files: make([]string, 0),
+	}
 }
 
-func (m *Manager) MakeTempFile() error {
-	if m.tempFile != nil {
-		if err := os.Remove(m.tempFile.Name()); err != nil {
+// Add adds a file to the list of files
+func (m *Manager) Add(fname string) {
+	m.files = append(m.files, fname)
+}
+
+// Shutdown removes all the files maintained by the Manager
+func (m *Manager) Shutdown() {
+	for _, f := range m.files {
+		os.Remove(f)
+	}
+}
+
+// NewFile created a new temporary file with format buffer*.tar.gzip
+func NewFile(name string) (*os.File, error) {
+	fname := name + "-*.tar.gzip"
+	return ioutil.TempFile(dir, fname)
+}
+
+// WriteTarball walks the filepath starting at dir and writes the tarball into writer
+func WriteTarball(writer io.Writer, dir string) error {
+	tw := tar.NewWriter(writer)
+
+	defer tw.Close()
+
+	// walk path
+	return filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
 			return err
 		}
-	}
 
-	file, err := ioutil.TempFile(dir, "buffer")
-	if err != nil {
-		return err
-	}
+		header, err := tar.FileInfoHeader(info, info.Name())
+		if err != nil {
+			return err
+		}
 
-	m.tempFile = file
+		header.Name = path
+		if err := tw.WriteHeader(header); err != nil {
+			return err
+		}
 
-	return nil
-}
+		if !info.Mode().IsRegular() {
+			return nil
+		}
 
-func (m *Manager) Write(p []byte) (n int, err error) {
-	if m.tempFile == nil {
-		return 0, fmt.Errorf("File not set")
-	}
-	return m.tempFile.Write(p)
-}
+		f, err := os.Open(path)
+		defer f.Close()
+		if err != nil {
+			return err
+		}
 
-func (m *Manager) Read(p []byte) (n int, err error) {
-	return m.tempFile.Read(p)
-}
+		if _, err := io.Copy(tw, f); err != nil {
+			return err
+		}
 
-func (m *Manager) Cleanup() error {
-	defer os.Remove(m.tempFile.Name())
-	if err := m.tempFile.Close(); err != nil {
-		return err
-	}
-
-	return nil
+		return nil
+	})
 }

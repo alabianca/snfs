@@ -9,3 +9,11 @@ type LookupRequest struct {
 type LookupResponse struct {
 	IPs []net.IP `json:"ips"`
 }
+
+type FileUploadRequest struct {
+	Path string `json:"path"`
+}
+
+type FileUploadResponse struct {
+	Message string `json:"message"`
+}

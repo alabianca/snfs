@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"os"
 	"path/filepath"
@@ -83,4 +84,23 @@ func WriteTarball(writer io.Writer, dir string) error {
 
 		return nil
 	})
+}
+
+func ReadTarball(reader io.Reader) error {
+	tr := tar.NewReader(reader)
+	log.Println("Reading tarball")
+	for {
+		header, err := tr.Next()
+		log.Println(err)
+		switch {
+		case err == io.EOF:
+			return nil
+		case err != nil:
+			return err
+		case header == nil:
+			continue
+		}
+
+		io.Copy(os.Stdout, tr)
+	}
 }

@@ -2,10 +2,11 @@ package client
 
 import (
 	"context"
-	"io"
 	"net"
 	"net/http"
 	"strconv"
+
+	"github.com/alabianca/snfs/snfs/fs"
 
 	"github.com/alabianca/snfs/snfs/discovery"
 )
@@ -15,13 +16,13 @@ type ConnectivityService struct {
 	Port       int
 	discovery  *discovery.Manager
 	httpServer *http.Server
-	fs         io.ReadWriter
+	storage    *fs.Manager
 }
 
-func NewConnectivityService(dManager *discovery.Manager, fs io.ReadWriter) *ConnectivityService {
+func NewConnectivityService(dManager *discovery.Manager, storage *fs.Manager) *ConnectivityService {
 	return &ConnectivityService{
 		discovery: dManager,
-		fs:        fs,
+		storage:   storage,
 	}
 }
 
