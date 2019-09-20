@@ -18,7 +18,8 @@ import (
 	"github.com/alabianca/snfs/snfs/server"
 )
 
-var port = flag.Int("p", 4000, "Port of the server")
+var dport = flag.Int("dp", 4000, "Port of the peer service, discoverable by peers")
+var cport = flag.Int("cp", 4001, "Port of the client connectivity service. This port is used by local client applications")
 var instance = flag.String("i", "default", "Instance Name")
 
 const topLevelDomain = ".snfs.com"
@@ -26,14 +27,11 @@ const topLevelDomain = ".snfs.com"
 func main() {
 	flag.Parse()
 	done := make(chan os.Signal, 1)
-	httpClosed := make(chan bool)
+
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	addr := ""
 
-	server := server.Server{
-		Port: *port,
-		Addr: addr,
-	}
+	server := server.Server{}
 
 	// initialize file storage
 	server.MountStorage(
@@ -46,15 +44,12 @@ func main() {
 	)
 
 	// Client connectivity services like http/protobuf
-	server.StartClientConnectivityService()
-
-	// Serve in separate thread
-	go func() {
-		if err := server.HTTPListenAndServe(); err != nil {
-			log.Println(err)
-			httpClosed <- true
-		}
-	}()
+	server.StartClientConnectivityService(addr, *cport)
+	// Start the peer service. (service discoverable by other peers in local network)
+	server.StartPeerService(addr, *dport)
+	// Serve in separate go-routines
+	clientConnectivityExited := serveHTTP(&server, server.ClientConnectivity)
+	peerServiceExited := serveHTTP(&server, server.PeerService)
 
 	// Wait for termination signal to attempt graceful shutdown
 	<-done
@@ -70,14 +65,15 @@ func main() {
 		log.Fatal("Server Shutdown failed....")
 	}
 
-	<-httpClosed
+	<-clientConnectivityExited
+	<-peerServiceExited
 	log.Println("Server Shutdown properly")
 
 }
 
 func mdnsConfig(m *discovery.MdnsService) {
 	instanceName, _ := splitFromTopLevelDomain(*instance)
-	m.SetPort(*port)
+	m.SetPort(*dport)
 	m.SetInstance(instanceName)
 
 }
@@ -89,4 +85,15 @@ func splitFromTopLevelDomain(instance string) (string, error) {
 	split := strings.Split(instance, topLevelDomain)
 
 	return split[0], nil
+}
+
+func serveHTTP(server *server.Server, service server.Rest) chan bool {
+	done := make(chan bool)
+	go func() {
+		if err := server.HTTPListenAndServe(service); err != nil {
+			done <- true
+		}
+	}()
+
+	return done
 }

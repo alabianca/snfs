@@ -2,7 +2,9 @@ package server
 
 import (
 	"context"
-	"fmt"
+	"errors"
+
+	"github.com/alabianca/snfs/snfs/peer"
 
 	"github.com/alabianca/snfs/snfs/client"
 	"github.com/alabianca/snfs/snfs/fs"
@@ -15,6 +17,7 @@ type Server struct {
 	Addr               string
 	DiscoveryManager   *discovery.Manager
 	ClientConnectivity *client.ConnectivityService
+	PeerService        *peer.Manager
 	Storage            *fs.Manager
 }
 
@@ -26,19 +29,23 @@ func (s *Server) SetDiscoveryManager(strategy discovery.Strategy) {
 	s.DiscoveryManager = discovery.NewManager(strategy)
 }
 
-func (s *Server) StartClientConnectivityService() {
+func (s *Server) StartClientConnectivityService(addr string, port int) {
 	s.ClientConnectivity = client.NewConnectivityService(s.DiscoveryManager, s.Storage)
-	s.ClientConnectivity.SetAddr(s.Addr, s.Port)
+	s.ClientConnectivity.SetAddr(addr, port)
 
 }
 
-func (s *Server) HTTPListenAndServe() error {
-	if s.ClientConnectivity == nil {
-		return fmt.Errorf("Client Connectivity Service not started")
+func (s *Server) StartPeerService(addr string, port int) {
+	s.PeerService = peer.NewManager(s.Storage)
+	s.PeerService.SetAddr(addr, port)
+}
+
+func (s *Server) HTTPListenAndServe(service Rest) error {
+	if service == nil {
+		return errors.New("nil service provided")
 	}
 
-	return s.ClientConnectivity.REST()
-
+	return service.REST()
 }
 
 func (s *Server) Shutdown(ctx context.Context) error {
@@ -49,5 +56,6 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	// stop mdns
 	s.DiscoveryManager.UnRegister()
 	// stop accepting connections
-	return s.ClientConnectivity.Shutdown(ctx)
+	s.ClientConnectivity.Shutdown(ctx)
+	return s.PeerService.Shutdown(ctx)
 }

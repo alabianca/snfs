@@ -2,10 +2,12 @@ package fs
 
 import (
 	"archive/tar"
+	"errors"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 const dir = "/Users/alexanderlabianca/go/src/github.com/alabianca/snfs"
@@ -33,6 +35,27 @@ func (m *Manager) Shutdown() {
 	for _, f := range m.files {
 		os.Remove(f)
 	}
+}
+
+func (m *Manager) Find(id string) (*os.File, error) {
+	var file string
+	for _, f := range m.files {
+		if strings.Contains(f, id) {
+			file = f
+			break
+		}
+	}
+
+	if file == "" {
+		return nil, errors.New("Not Found")
+	}
+
+	f, err := os.Open(file)
+	if err != nil {
+		return nil, errors.New("Error Opening file")
+	}
+
+	return f, nil
 }
 
 // NewFile created a new temporary file with format buffer*.tar.gzip
