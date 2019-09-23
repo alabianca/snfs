@@ -3,3 +3,4 @@ authority/authd/certs/*
 test_client
 test2_server
 bin/
+.vscode/

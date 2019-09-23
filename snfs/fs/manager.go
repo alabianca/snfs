@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-const dir = "/Users/alexanderlabianca/go/src/github.com/alabianca/snfs"
+const dir = "/Users/alexander/go/src/github.com/alabianca/snfs"
 
 // Manager maintains a list of files that are currently
 // shared in the local network

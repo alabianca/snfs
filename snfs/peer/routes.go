@@ -20,7 +20,7 @@ func restAPIRoutes(m *Manager) *chi.Mux {
 	)
 
 	router.Route("/peer/v1", func(r chi.Router) {
-		r.Mount("/resource", getResource(m.storage))
+		r.Mount("/resource", resourceRoutes(m.storage))
 	})
 
 	return router
@@ -29,7 +29,7 @@ func restAPIRoutes(m *Manager) *chi.Mux {
 func resourceRoutes(storage *fs.Manager) *chi.Mux {
 	router := chi.NewRouter()
 
-	router.Get("/x/{id}", getResource(storage))
+	router.Get("/{resourceId}", getResource(storage))
 
 	return router
 }

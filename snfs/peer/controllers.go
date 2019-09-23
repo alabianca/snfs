@@ -10,10 +10,10 @@ import (
 
 func getResource(storage *fs.Manager) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
-		id := chi.URLParam(req, "id")
+		id := chi.URLParam(req, "resourceId")
 		if id == "" {
 			res.WriteHeader(http.StatusBadRequest)
-			res.Write([]byte("Missing ID Param"))
+			res.Write([]byte("Missing ResourceID Param"))
 			return
 		}
 
