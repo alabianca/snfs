@@ -1,9 +1,10 @@
 package cmd
 
 import (
-	"log"
+	"os"
 	"time"
 
+	"github.com/alabianca/spin"
 	"github.com/spf13/cobra"
 )
 
@@ -16,6 +17,14 @@ var lsCmd = &cobra.Command{
 	Short: "List nodes",
 	Long:  `List all sharing nodes in the local network. You can clone content from these nodes`,
 	Run: func(cmd *cobra.Command, args []string) {
-		log.Println(time.Now())
+
+		spinner := spin.NewSpinner(spin.Dots, os.Stdout)
+
+		go func() {
+			spinner.Start()
+		}()
+
+		<-time.After(time.Second * 5)
+		spinner.Stop()
 	},
 }

@@ -53,13 +53,13 @@ func Service(o ...Option) MDNS {
 
 // Register registers the MdnsService in the local network
 // at this point the service is disoverable under the "_snfs._tcp" service
-func (mdns *MdnsService) Register() error {
+func (mdns *MdnsService) Register(instance string, port int) error {
 	var err error
 	mdns.server, err = zeroconf.Register(
-		mdns.instanceName,
+		instance,
 		mdns.service,
 		mdns.domain,
-		mdns.port,
+		port,
 		mdns.text,
 		mdns.ifaces,
 	)

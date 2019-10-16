@@ -17,7 +17,22 @@ import (
 
 func startMDNSController(d *discovery.Manager) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
-		if err := d.Register(); err != nil {
+
+		buf := new(bytes.Buffer)
+		if _, err := io.Copy(buf, req.Body); err != nil {
+			res.WriteHeader(http.StatusInternalServerError)
+			res.Write([]byte("MDNS Could Not Register"))
+			return
+		}
+
+		var sReq SubscribeRequest
+		if err := json.Unmarshal(buf.Bytes(), &sReq); err != nil {
+			res.WriteHeader(http.StatusInternalServerError)
+			res.Write([]byte("MDNS Could Not Register"))
+			return
+		}
+
+		if err := d.Register(sReq.Instance, sReq.Port); err != nil {
 			res.WriteHeader(http.StatusInternalServerError)
 			res.Write([]byte("MDNS Could Not Register"))
 			return

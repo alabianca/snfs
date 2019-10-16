@@ -72,12 +72,7 @@ func main() {
 }
 
 func mdnsConfig(m *discovery.MdnsService) {
-	instanceName, err := splitFromTopLevelDomain(*instance)
-	if err != nil {
-		log.Fatal(err)
-	}
 	m.SetPort(*dport)
-	m.SetInstance(instanceName)
 
 }
 

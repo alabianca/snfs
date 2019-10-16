@@ -20,8 +20,8 @@ func NewManager(s Strategy) *Manager {
 	return &m
 }
 
-func (m *Manager) Register() error {
-	return m.strategy.Register()
+func (m *Manager) Register(instance string, port int) error {
+	return m.strategy.Register(instance, port)
 }
 
 func (m *Manager) UnRegister() {

@@ -2,6 +2,11 @@ package client
 
 import "net"
 
+type SubscribeRequest struct {
+	Instance string `json:"instance"`
+	Port     int    `json:"port"`
+}
+
 type LookupRequest struct {
 	Instance string `json:"instance"`
 }

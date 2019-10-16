@@ -17,6 +17,6 @@ type MDNS interface {
 	Interfaces() []net.Interface
 	Port() int
 	Instance() string
-	Register() error
+	Register(instance string, port int) error
 	Shutdown()
 }
