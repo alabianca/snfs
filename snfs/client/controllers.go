@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -103,7 +104,9 @@ func postFile(manager *fs.Manager) http.HandlerFunc {
 		}
 		defer storage.Close()
 
-		if err := fs.WriteTarball(storage, request.Path); err != nil {
+		gzw := gzip.NewWriter(storage)
+
+		if err := fs.WriteTarball(gzw, request.Path); err != nil {
 			res.WriteHeader(http.StatusInternalServerError)
 			response.Message = "Error occured saving tarball"
 			bts, _ := json.Marshal(&response)
