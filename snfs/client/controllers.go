@@ -32,7 +32,7 @@ func startMDNSController(d *discovery.Manager) http.HandlerFunc {
 			return
 		}
 
-		if err := d.Register(sReq.Instance, sReq.Port); err != nil {
+		if err := d.Register(sReq.Instance); err != nil {
 			res.WriteHeader(http.StatusInternalServerError)
 			res.Write([]byte("MDNS Could Not Register"))
 			return

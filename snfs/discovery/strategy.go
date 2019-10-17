@@ -6,7 +6,7 @@ import (
 )
 
 type Strategy interface {
-	Register(instance string, port int) error
+	Register(instance string) error
 	Shutdown()
 	Lookup(ctx context.Context, instance string) ([]net.IP, error)
 }
