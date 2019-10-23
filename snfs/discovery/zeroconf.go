@@ -55,6 +55,7 @@ func Service(o ...Option) MDNS {
 // at this point the service is disoverable under the "_snfs._tcp" service
 func (mdns *MdnsService) Register(instance string) error {
 	var err error
+	mdns.instanceName = instance
 	mdns.server, err = zeroconf.Register(
 		instance,
 		mdns.service,

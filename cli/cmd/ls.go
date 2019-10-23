@@ -18,7 +18,7 @@ var lsCmd = &cobra.Command{
 	Long:  `List all sharing nodes in the local network. You can clone content from these nodes`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		spinner := spin.NewSpinner(spin.Dots, os.Stdout)
+		spinner := spin.NewSpinner(spin.Dots2, os.Stdout)
 
 		go func() {
 			spinner.Start()

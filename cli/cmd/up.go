@@ -1,11 +1,10 @@
 package cmd
 
 import (
-	"bytes"
-	"encoding/json"
+	"fmt"
 	"log"
-	"net/http"
 
+	"github.com/alabianca/snfs/cli/services"
 	"github.com/spf13/cobra"
 )
 
@@ -13,12 +12,8 @@ func init() {
 	rootCmd.AddCommand(upCmd)
 }
 
-type subscriptionRequest struct {
-	Instance string `json:"instance"`
-}
-
 var upCmd = &cobra.Command{
-	Use:   "up [instance] [port]",
+	Use:   "up [instance]",
 	Short: "Register node",
 	Long:  `Register your node in the local network. Accept connections from peers`,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -26,23 +21,14 @@ var upCmd = &cobra.Command{
 			log.Fatal("Please provide instance")
 		}
 
-		data, _ := marshalSubscriptionRequest(args[0])
-		body := bytes.NewBuffer(data)
-		req, err := http.NewRequest("POST", "http://localhost:4200/api/v1/mdns/subscribe", body)
+		mdns := services.NewMdnsService()
+		status, err := mdns.Register(args[0])
 		if err != nil {
-			log.Fatal(err)
+			fmt.Println(err)
+			return
 		}
 
-		client := http.Client{}
-		client.Do(req)
+		fmt.Println(status)
 
 	},
-}
-
-func marshalSubscriptionRequest(instance string) ([]byte, error) {
-	req := subscriptionRequest{
-		Instance: instance,
-	}
-
-	return json.Marshal(&req)
 }

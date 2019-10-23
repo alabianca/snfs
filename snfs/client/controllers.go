@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/alabianca/snfs/util"
+
 	"github.com/alabianca/snfs/snfs/fs"
 
 	"github.com/go-chi/chi"
@@ -20,33 +22,29 @@ func startMDNSController(d *discovery.Manager) http.HandlerFunc {
 
 		buf := new(bytes.Buffer)
 		if _, err := io.Copy(buf, req.Body); err != nil {
-			res.WriteHeader(http.StatusInternalServerError)
-			res.Write([]byte("MDNS Could Not Register"))
+			util.Respond(res, util.Message(http.StatusInternalServerError, "MDNS Could Not Register"))
 			return
 		}
 
 		var sReq SubscribeRequest
 		if err := json.Unmarshal(buf.Bytes(), &sReq); err != nil {
-			res.WriteHeader(http.StatusInternalServerError)
-			res.Write([]byte("MDNS Could Not Register"))
+			util.Respond(res, util.Message(http.StatusInternalServerError, "MDNS Could Not Register"))
 			return
 		}
 
 		if err := d.Register(sReq.Instance); err != nil {
-			res.WriteHeader(http.StatusInternalServerError)
-			res.Write([]byte("MDNS Could Not Register"))
+			util.Respond(res, util.Message(http.StatusInternalServerError, "MDNS Could Not Register"))
 			return
 		}
-		res.WriteHeader(http.StatusCreated)
-		res.Write([]byte("MDNS Started"))
+
+		util.Respond(res, util.Message(http.StatusOK, "MDNS Is Registered"))
 	}
 }
 
 func stopMDNSController(d *discovery.Manager) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
 		d.UnRegister()
-		res.WriteHeader(http.StatusCreated)
-		res.Write([]byte("MDNS Stopped"))
+		util.Respond(res, util.Message(http.StatusOK, "MDNS Stopped"))
 	}
 }
 

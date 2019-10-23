@@ -6,6 +6,10 @@ type SubscribeRequest struct {
 	Instance string `json:"instance"`
 }
 
+type SubscribeRequestMessage struct {
+	Message string `json:"message"`
+}
+
 type LookupRequest struct {
 	Instance string `json:"instance"`
 }
