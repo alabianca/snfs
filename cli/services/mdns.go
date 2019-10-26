@@ -66,7 +66,7 @@ func (m *MdnsService) Browse() ([]string, error) {
 }
 
 func (m *MdnsService) post(url string, body io.Reader) (string, error) {
-	res, err := m.api.Post(url, body)
+	res, err := m.api.Post(url, "application/json", body)
 	if err != nil {
 		return "", err
 	}

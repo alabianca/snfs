@@ -23,6 +23,7 @@ func restAPIRoutes(c *ConnectivityService) *chi.Mux {
 	router.Route("/api/v1", func(r chi.Router) {
 		r.Mount("/mdns", mdnsRoutes(c.discovery))
 		r.Mount("/filesystem", filesystemRoutes(c.storage))
+		r.Mount("/storage", storageRoutes(c.storage))
 	})
 
 	return router
@@ -43,6 +44,14 @@ func filesystemRoutes(storage *fs.Manager) *chi.Mux {
 	router := chi.NewRouter()
 
 	router.Post("/context", postFile(storage))
+
+	return router
+}
+
+func storageRoutes(storage *fs.Manager) *chi.Mux {
+	router := chi.NewRouter()
+
+	router.Post("/fname/{name}", storeFileController(storage))
 
 	return router
 }

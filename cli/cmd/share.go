@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"time"
+
+	"github.com/alabianca/snfs/cli/services"
 
 	"github.com/spf13/cobra"
 )
@@ -19,14 +20,25 @@ var shareCmd = &cobra.Command{
 	Args:  cobra.MinimumNArgs(1),
 	Long:  `share the given context with peers in the local network`,
 	Run: func(cmd *cobra.Command, args []string) {
-		log.Println(time.Now())
+		var fname string
+		if len(args) < 1 {
+			log.Fatal("Please provide file name")
+		}
+		if len(args) == 2 {
+			fname = args[1]
+		}
 
-		finfo, err := os.Stat(args[0])
+		storage := services.NewStroageService()
+		uploadCntx := args[0]
+
+		finfo, err := os.Stat(uploadCntx)
 		if err != nil {
 			fmt.Println(err)
 		} else {
 			fmt.Println(finfo.IsDir())
 			fmt.Println(finfo.Name())
+			fmt.Println(finfo.Size())
+			storage.Upload(fname, uploadCntx)
 		}
 	},
 }

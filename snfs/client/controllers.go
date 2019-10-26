@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -160,6 +161,27 @@ func postFile(manager *fs.Manager) http.HandlerFunc {
 		response.Message = "File " + storage.Name() + " created"
 		bts, _ := json.Marshal(&response)
 		res.Write(bts)
+	}
+}
+
+func storeFileController(storage *fs.Manager) http.HandlerFunc {
+	return func(res http.ResponseWriter, req *http.Request) {
+		log.Println("Form Upload EP hit")
+		req.ParseMultipartForm(10 << 20)
+
+		file, header, err := req.FormFile("upload")
+		if err != nil {
+			util.Respond(res, util.Message(http.StatusInternalServerError, err.Error()))
+			return
+		}
+
+		defer file.Close()
+		fmt.Printf("Uploaded File: %+v\n", header.Filename)
+		fmt.Printf("File Size: %+v\n", header.Size)
+		fmt.Printf("MIME Header: %+v\n", header.Header)
+
+		util.Respond(res, util.Message(http.StatusOK, "OK"))
+
 	}
 }
 

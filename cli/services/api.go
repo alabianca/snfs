@@ -17,11 +17,13 @@ func NewRestAPI() *RestAPI {
 	}
 }
 
-func (r *RestAPI) Post(url string, body io.Reader) (*http.Response, error) {
+func (r *RestAPI) Post(url, contentType string, body io.Reader) (*http.Response, error) {
 	req, err := http.NewRequest("POST", r.getURL(url), body)
 	if err != nil {
 		return nil, err
 	}
+
+	req.Header.Set("Content-Type", contentType)
 
 	return r.httpClient.Do(req)
 
