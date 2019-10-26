@@ -27,6 +27,15 @@ func (r *RestAPI) Post(url string, body io.Reader) (*http.Response, error) {
 
 }
 
+func (r *RestAPI) Get(url string, body io.Reader) (*http.Response, error) {
+	req, err := http.NewRequest("GET", r.getURL(url), body)
+	if err != nil {
+		return nil, err
+	}
+
+	return r.httpClient.Do(req)
+}
+
 func (r *RestAPI) getURL(url string) string {
 	return r.baseURL + url
 }

@@ -2,7 +2,6 @@ package util
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 )
 
@@ -17,6 +16,6 @@ func Respond(w http.ResponseWriter, data map[string]interface{}) {
 		code := status.(int)
 		w.WriteHeader(code)
 	}
-	log.Println("res", data)
+
 	json.NewEncoder(w).Encode(data)
 }

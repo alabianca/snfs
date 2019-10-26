@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 
@@ -83,6 +84,32 @@ func lookupMDNSController(d *discovery.Manager) http.HandlerFunc {
 		res.WriteHeader(http.StatusOK)
 		res.Header().Set("Content-Type", "application/json")
 		res.Write(out)
+	}
+}
+
+func getInstancesController(d *discovery.Manager) http.HandlerFunc {
+	return func(res http.ResponseWriter, req *http.Request) {
+		entries, err := d.Browse()
+		if err != nil {
+			util.Respond(res, util.Message(http.StatusInternalServerError, "Something went wrong"))
+			return
+		}
+
+		if len(entries) == 0 {
+			util.Respond(res, util.Message(http.StatusNotFound, "No Entrties found"))
+			return
+		}
+
+		instances := make([]string, len(entries))
+
+		for i, entry := range entries {
+			instances[i] = entry.Instance
+		}
+		log.Println("Found ", instances)
+		response := util.Message(http.StatusOK, "Ok")
+		response["data"] = instances
+
+		util.Respond(res, response)
 	}
 }
 

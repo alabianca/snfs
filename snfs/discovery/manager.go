@@ -4,16 +4,20 @@ import (
 	"context"
 	"net"
 	"time"
+
+	"github.com/grandcat/zeroconf"
 )
 
 type Manager struct {
 	ResolveTimeout time.Duration
+	BrowseTimeout  time.Duration
 	strategy       Strategy
 }
 
 func NewManager(s Strategy) *Manager {
 	m := Manager{
 		ResolveTimeout: time.Second * 5,
+		BrowseTimeout:  time.Second * 5,
 		strategy:       s,
 	}
 
@@ -33,4 +37,8 @@ func (m *Manager) Resolve(instance string) ([]net.IP, error) {
 	defer cancel()
 
 	return m.strategy.Lookup(ctx, instance)
+}
+
+func (m *Manager) Browse() ([]*zeroconf.ServiceEntry, error) {
+	return m.strategy.BrowseFor(m.BrowseTimeout)
 }

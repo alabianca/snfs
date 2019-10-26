@@ -17,6 +17,12 @@ type subscriptionResponse struct {
 	Message string `json:"message"`
 }
 
+type instancesResponse struct {
+	Instances []string `json:"data"`
+	Status    int      `json:"status"`
+	Message   string   `json:"message"`
+}
+
 type MdnsService struct {
 	api *RestAPI
 }
@@ -41,6 +47,24 @@ func (m *MdnsService) Unregister() (string, error) {
 	return m.post("v1/mdns/unsubscribe", nil)
 }
 
+func (m *MdnsService) Browse() ([]string, error) {
+	res, err := m.api.Get("v1/mdns/instance", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var responseMessage instancesResponse
+	if err := decode(res.Body, &responseMessage); err != nil {
+		return nil, err
+	}
+
+	if responseMessage.Status != http.StatusOK {
+		return nil, errors.New(responseMessage.Message)
+	}
+
+	return responseMessage.Instances, nil
+}
+
 func (m *MdnsService) post(url string, body io.Reader) (string, error) {
 	res, err := m.api.Post(url, body)
 	if err != nil {
@@ -48,8 +72,8 @@ func (m *MdnsService) post(url string, body io.Reader) (string, error) {
 	}
 
 	var responseMessage subscriptionResponse
-	if err := json.NewDecoder(res.Body).Decode(&responseMessage); err != nil {
-		return "", err
+	if err := decode(res.Body, &responseMessage); err != nil {
+		return "", nil
 	}
 
 	if responseMessage.Status != http.StatusOK {
@@ -65,4 +89,8 @@ func marshalSubscriptionRequest(instance string) ([]byte, error) {
 	}
 
 	return json.Marshal(&req)
+}
+
+func decode(body io.Reader, d interface{}) error {
+	return json.NewDecoder(body).Decode(d)
 }

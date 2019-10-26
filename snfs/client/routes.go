@@ -34,6 +34,7 @@ func mdnsRoutes(d *discovery.Manager) *chi.Mux {
 	router.Post("/subscribe", startMDNSController(d))
 	router.Post("/unsubscribe", stopMDNSController(d))
 	router.Get("/instance/{instance}", lookupMDNSController(d))
+	router.Get("/instance", getInstancesController(d))
 
 	return router
 }
