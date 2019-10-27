@@ -78,6 +78,8 @@ func hashContents(uploadContents string) ([]byte, error) {
 		return nil, err
 	}
 
+	gzw.Close()
+
 	return hash.Sum(nil), nil
 
 }

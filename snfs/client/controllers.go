@@ -195,6 +195,8 @@ func storeFileController(storage *fs.Manager) http.HandlerFunc {
 			return
 		}
 
+		storageWriter.Close()
+
 		hashed := fmt.Sprintf("%x", storageWriter.Sum(nil))
 		if err := storage.AddObject(header.Filename, hashed, header.Size); err != nil {
 			util.Respond(res, util.Message(http.StatusInternalServerError, "Error Adding File Object"))
