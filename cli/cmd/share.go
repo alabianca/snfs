@@ -10,8 +10,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var tag string
+
 func init() {
 	rootCmd.AddCommand(shareCmd)
+	shareCmd.Flags().StringVarP(&tag, "tag", "t", "", "Override default file name that is created")
 }
 
 var shareCmd = &cobra.Command{
@@ -24,12 +27,10 @@ var shareCmd = &cobra.Command{
 		if len(args) < 1 {
 			log.Fatal("Please provide file name")
 		}
-		if len(args) == 2 {
-			fname = args[1]
-		}
 
 		storage := services.NewStroageService()
 		uploadCntx := args[0]
+		fname = tag
 
 		finfo, err := os.Stat(uploadCntx)
 		if err != nil {

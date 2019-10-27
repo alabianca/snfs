@@ -90,7 +90,3 @@ func marshalSubscriptionRequest(instance string) ([]byte, error) {
 
 	return json.Marshal(&req)
 }
-
-func decode(body io.Reader, d interface{}) error {
-	return json.NewDecoder(body).Decode(d)
-}

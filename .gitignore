@@ -4,3 +4,5 @@ test_client
 test2_server
 bin/
 .vscode/
+.DS_Store
+objects/

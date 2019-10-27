@@ -43,6 +43,10 @@ func main() {
 		discovery.MdnsStrategy(mdnsConfig),
 	)
 
+	if err := server.SetStoragePath("/Users/alexander/go/src/github.com/alabianca/snfs"); err != nil {
+		os.Exit(1)
+	}
+
 	// Client connectivity services like http/protobuf
 	server.StartClientConnectivityService(addr, *cport)
 	// Start the peer service. (service discoverable by other peers in local network)

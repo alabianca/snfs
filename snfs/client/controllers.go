@@ -2,7 +2,7 @@ package client
 
 import (
 	"bytes"
-	"compress/gzip"
+	"crypto/md5"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -116,51 +116,51 @@ func getInstancesController(d *discovery.Manager) http.HandlerFunc {
 
 func postFile(manager *fs.Manager) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
-		buf := new(bytes.Buffer)
-		var response FileUploadResponse
-		var request FileUploadRequest
-		if _, err := io.Copy(buf, req.Body); err != nil {
-			res.WriteHeader(http.StatusBadRequest)
-			response.Message = "Could Not Read Body"
-			bts, _ := json.Marshal(&response)
-			res.Write(bts)
-			return
-		}
+		// buf := new(bytes.Buffer)
+		// var response FileUploadResponse
+		// var request FileUploadRequest
+		// if _, err := io.Copy(buf, req.Body); err != nil {
+		// 	res.WriteHeader(http.StatusBadRequest)
+		// 	response.Message = "Could Not Read Body"
+		// 	bts, _ := json.Marshal(&response)
+		// 	res.Write(bts)
+		// 	return
+		// }
 
-		if err := json.Unmarshal(buf.Bytes(), &request); err != nil {
-			res.WriteHeader(http.StatusInternalServerError)
-			response.Message = "Error Decoding Request " + err.Error()
-			bts, _ := json.Marshal(&response)
-			res.Write(bts)
-			return
-		}
+		// if err := json.Unmarshal(buf.Bytes(), &request); err != nil {
+		// 	res.WriteHeader(http.StatusInternalServerError)
+		// 	response.Message = "Error Decoding Request " + err.Error()
+		// 	bts, _ := json.Marshal(&response)
+		// 	res.Write(bts)
+		// 	return
+		// }
 
-		storage, err := fs.NewFile(getObjectName(request.Path))
-		if err != nil {
-			res.WriteHeader(http.StatusInternalServerError)
-			response.Message = "Could Not Create Temporary File"
-			bts, _ := json.Marshal(&response)
-			res.Write(bts)
-			return
-		}
-		defer storage.Close()
+		// //storage, err := fs.NewFile(getObjectName(request.Path))
+		// if err != nil {
+		// 	res.WriteHeader(http.StatusInternalServerError)
+		// 	response.Message = "Could Not Create Temporary File"
+		// 	bts, _ := json.Marshal(&response)
+		// 	res.Write(bts)
+		// 	return
+		// }
+		// defer storage.Close()
 
-		gzw := gzip.NewWriter(storage)
+		// gzw := gzip.NewWriter(storage)
 
-		if err := fs.WriteTarball(gzw, request.Path); err != nil {
-			res.WriteHeader(http.StatusInternalServerError)
-			response.Message = "Error occured saving tarball"
-			bts, _ := json.Marshal(&response)
-			res.Write(bts)
-			return
-		}
+		// if err := fs.WriteTarball(gzw, request.Path); err != nil {
+		// 	res.WriteHeader(http.StatusInternalServerError)
+		// 	response.Message = "Error occured saving tarball"
+		// 	bts, _ := json.Marshal(&response)
+		// 	res.Write(bts)
+		// 	return
+		// }
 
-		manager.Add(storage.Name())
+		// //manager.Add(storage.Name())
 
-		res.WriteHeader(http.StatusCreated)
-		response.Message = "File " + storage.Name() + " created"
-		bts, _ := json.Marshal(&response)
-		res.Write(bts)
+		// res.WriteHeader(http.StatusCreated)
+		// response.Message = "File " + storage.Name() + " created"
+		// bts, _ := json.Marshal(&response)
+		// res.Write(bts)
 	}
 }
 
@@ -180,7 +180,28 @@ func storeFileController(storage *fs.Manager) http.HandlerFunc {
 		fmt.Printf("File Size: %+v\n", header.Size)
 		fmt.Printf("MIME Header: %+v\n", header.Header)
 
-		util.Respond(res, util.Message(http.StatusOK, "OK"))
+		destFile, err := fs.NewFile(storage.GetRoot(), header.Filename)
+		if err != nil {
+			util.Respond(res, util.Message(http.StatusInternalServerError, "Error Creating Destination File"))
+			return
+		}
+
+		hasher := md5.New()
+		storageWriter := fs.NewWriter(hasher, destFile)
+		defer storageWriter.Close()
+
+		if _, err := io.Copy(storageWriter, file); err != nil {
+			util.Respond(res, util.Message(http.StatusInternalServerError, "Error Writing To Storage"))
+			return
+		}
+
+		hashed := fmt.Sprintf("%x", storageWriter.Sum(nil))
+		if err := storage.AddObject(header.Filename, hashed, header.Size); err != nil {
+			util.Respond(res, util.Message(http.StatusInternalServerError, "Error Adding File Object"))
+			return
+		}
+
+		util.Respond(res, util.Message(http.StatusCreated, "OK"))
 
 	}
 }

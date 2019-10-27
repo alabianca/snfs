@@ -6,10 +6,14 @@ import (
 	"crypto/md5"
 	"fmt"
 	"mime/multipart"
-	"strings"
 
 	"github.com/alabianca/snfs/util"
 )
+
+type storageResponse struct {
+	Status  int    `json:"status"`
+	Message string `json:"message"`
+}
 
 type StorageService struct {
 	api *RestAPI
@@ -44,11 +48,25 @@ func (s *StorageService) Upload(fname, uploadCntx string) error {
 		return err
 	}
 
+	gzw.Close()
+
+	// 3. Upload the file
 	contentType := bodyWriter.FormDataContentType()
-	url := "v1/storage/fname/" + strings.Split(fname, ".")[0]
+	url := "v1/storage/fname/" + fname
 	bodyWriter.Close()
 
-	s.api.Post(url, contentType, bodyBuf)
+	// 4. Read response
+	res, err := s.api.Post(url, contentType, bodyBuf)
+	if err != nil {
+		return err
+	}
+
+	var storeRes storageResponse
+	if err := decode(res.Body, &storeRes); err != nil {
+		return err
+	}
+
+	fmt.Println(storeRes)
 
 	return nil
 }

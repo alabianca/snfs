@@ -25,6 +25,19 @@ func (s *Server) MountStorage(storage *fs.Manager) {
 	s.Storage = storage
 }
 
+func (s *Server) SetStoragePath(path string) error {
+	if s.Storage == nil {
+		return errors.New("Storage Manager Not Set")
+	}
+
+	s.Storage.SetRoot(path)
+	if err := s.Storage.CreateRootDir(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (s *Server) SetDiscoveryManager(strategy discovery.Strategy) {
 	s.DiscoveryManager = discovery.NewManager(strategy)
 }

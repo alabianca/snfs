@@ -1,4 +1,3 @@
-
 server: deps
 	go build -o bin/snfsd ./snfs/main/
 
