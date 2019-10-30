@@ -67,18 +67,6 @@ func initSpinnerWithText(spinner spin.Spinner, text string) {
 	spinner.Start()
 }
 
-func initSpinnerWithTextx(spinType spin.SpinType, text string, stop chan bool) {
-	spinner := spin.NewSpinner(spinType, os.Stdout)
-	go func() {
-		fmt.Printf("  %s", text)
-		spinner.Start()
-	}()
-
-	<-stop
-	spinner.Stop()
-
-}
-
 func browse(done chan []string, errChan chan error) {
 	mdns := services.NewMdnsService()
 	instances, err := mdns.Browse()
