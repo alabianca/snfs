@@ -106,61 +106,11 @@ func getInstancesController(d *discovery.Manager) http.HandlerFunc {
 		for i, entry := range entries {
 			instances[i] = entry.Instance
 		}
-		log.Println("Found ", instances)
+
 		response := util.Message(http.StatusOK, "Ok")
 		response["data"] = instances
 
 		util.Respond(res, response)
-	}
-}
-
-func postFile(manager *fs.Manager) http.HandlerFunc {
-	return func(res http.ResponseWriter, req *http.Request) {
-		// buf := new(bytes.Buffer)
-		// var response FileUploadResponse
-		// var request FileUploadRequest
-		// if _, err := io.Copy(buf, req.Body); err != nil {
-		// 	res.WriteHeader(http.StatusBadRequest)
-		// 	response.Message = "Could Not Read Body"
-		// 	bts, _ := json.Marshal(&response)
-		// 	res.Write(bts)
-		// 	return
-		// }
-
-		// if err := json.Unmarshal(buf.Bytes(), &request); err != nil {
-		// 	res.WriteHeader(http.StatusInternalServerError)
-		// 	response.Message = "Error Decoding Request " + err.Error()
-		// 	bts, _ := json.Marshal(&response)
-		// 	res.Write(bts)
-		// 	return
-		// }
-
-		// //storage, err := fs.NewFile(getObjectName(request.Path))
-		// if err != nil {
-		// 	res.WriteHeader(http.StatusInternalServerError)
-		// 	response.Message = "Could Not Create Temporary File"
-		// 	bts, _ := json.Marshal(&response)
-		// 	res.Write(bts)
-		// 	return
-		// }
-		// defer storage.Close()
-
-		// gzw := gzip.NewWriter(storage)
-
-		// if err := fs.WriteTarball(gzw, request.Path); err != nil {
-		// 	res.WriteHeader(http.StatusInternalServerError)
-		// 	response.Message = "Error occured saving tarball"
-		// 	bts, _ := json.Marshal(&response)
-		// 	res.Write(bts)
-		// 	return
-		// }
-
-		// //manager.Add(storage.Name())
-
-		// res.WriteHeader(http.StatusCreated)
-		// response.Message = "File " + storage.Name() + " created"
-		// bts, _ := json.Marshal(&response)
-		// res.Write(bts)
 	}
 }
 
@@ -203,7 +153,10 @@ func storeFileController(storage *fs.Manager) http.HandlerFunc {
 			return
 		}
 
-		util.Respond(res, util.Message(http.StatusCreated, "OK"))
+		response := util.Message(http.StatusCreated, "OK")
+		response["data"] = hashed
+
+		util.Respond(res, response)
 
 	}
 }

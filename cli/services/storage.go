@@ -3,8 +3,6 @@ package services
 import (
 	"bytes"
 	"compress/gzip"
-	"crypto/md5"
-	"fmt"
 	"mime/multipart"
 
 	"github.com/alabianca/snfs/util"
@@ -13,6 +11,7 @@ import (
 type storageResponse struct {
 	Status  int    `json:"status"`
 	Message string `json:"message"`
+	Hash    string `json:"data"`
 }
 
 type StorageService struct {
@@ -25,27 +24,26 @@ func NewStroageService() *StorageService {
 	}
 }
 
-func (s *StorageService) Upload(fname, uploadCntx string) error {
+func (s *StorageService) Upload(fname, uploadCntx string) (string, error) {
 	// 1. create destination writer
 	bodyBuf := new(bytes.Buffer)
 	bodyWriter := multipart.NewWriter(bodyBuf)
-	if fname == "" {
-		hashed, err := hashContents(uploadCntx)
-		fmt.Println("Hashed ", fmt.Sprintf("%x", hashed))
-		if err != nil {
-			return err
-		}
+	// if fname == "" {
+	// 	hashed, err := hashContents(uploadCntx)
+	// 	if err != nil {
+	// 		return err
+	// 	}
 
-		fname = fmt.Sprintf("%x", hashed)
-	}
+	// 	fname = fmt.Sprintf("%x", hashed)
+	// }
 	fileWriter, err := bodyWriter.CreateFormFile("upload", fname)
 	if err != nil {
-		return err
+		return "", err
 	}
 	// 2. create tarball
 	gzw := gzip.NewWriter(fileWriter)
 	if err := util.WriteTarball(gzw, uploadCntx); err != nil {
-		return err
+		return "", err
 	}
 
 	gzw.Close()
@@ -58,28 +56,14 @@ func (s *StorageService) Upload(fname, uploadCntx string) error {
 	// 4. Read response
 	res, err := s.api.Post(url, contentType, bodyBuf)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	var storeRes storageResponse
 	if err := decode(res.Body, &storeRes); err != nil {
-		return err
+		return "", err
 	}
 
-	fmt.Println(storeRes)
-
-	return nil
-}
-
-func hashContents(uploadContents string) ([]byte, error) {
-	hash := md5.New()
-	gzw := gzip.NewWriter(hash)
-	if err := util.WriteTarball(gzw, uploadContents); err != nil {
-		return nil, err
-	}
-
-	gzw.Close()
-
-	return hash.Sum(nil), nil
+	return storeRes.Hash, nil
 
 }

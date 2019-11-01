@@ -31,7 +31,7 @@ func runLs() {
 	browser := make(chan []string)
 	errChan := make(chan error)
 	signal.Notify(sig, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
-	spinner := spin.NewSpinner(spin.Dots, os.Stdout)
+	spinner := spin.NewSpinner(spin.Dots2, os.Stdout)
 
 	go initSpinnerWithText(spinner, "Browsing Local Network")
 	go browse(browser, errChan)
