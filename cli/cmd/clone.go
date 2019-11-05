@@ -1,7 +1,11 @@
 package cmd
 
 import (
+	"fmt"
 	"log"
+	"os"
+
+	"github.com/alabianca/spin"
 
 	"github.com/alabianca/snfs/cli/services"
 
@@ -19,11 +23,37 @@ var cloneCmd = &cobra.Command{
 	Long:  `Clone the contents of a particular node into your current working directory`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) < 1 {
-			log.Fatal("Please provide file to download")
+			log.Fatal("Please provide file hash to download")
 		}
 
-		storageService := services.NewStroageService()
-
-		storageService.Download(args[0])
+		runClone(args[0])
 	},
+}
+
+func runClone(fileHash string) {
+	spinner := spin.NewSpinner(spin.Dots2, os.Stdout)
+	errChan := make(chan error)
+	successChan := make(chan bool)
+
+	go initSpinnerWithText(spinner, fmt.Sprintf("Downloading -> %s", fileHash))
+	go clone(fileHash, successChan, errChan)
+
+	select {
+	case err := <-errChan:
+		spinner.Stop()
+		fmt.Printf("[Error] %s\n", err)
+	case <-successChan:
+		spinner.Stop()
+		fmt.Println("Content downloaded")
+	}
+}
+
+func clone(fileHash string, success chan bool, errc chan error) {
+	storageService := services.NewStroageService()
+	if err := storageService.Download(fileHash); err != nil {
+		errc <- err
+		return
+	}
+
+	success <- true
 }

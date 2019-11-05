@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"compress/gzip"
 	"crypto/md5"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"mime/multipart"
 
 	"github.com/alabianca/snfs/util"
@@ -67,19 +67,18 @@ func (s *StorageService) Upload(fname, uploadCntx string) (string, error) {
 
 }
 
-func (s *StorageService) Download(hash string) {
+func (s *StorageService) Download(hash string) error {
 	url := "v1/storage/fname/" + hash
 	res, err := s.api.Get(url, nil)
 	if err != nil {
-		log.Fatal(err)
-		return
+		return err
 	}
 
 	defer res.Body.Close()
 
 	bodyBytes, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	hasher := md5.New()
@@ -87,15 +86,14 @@ func (s *StorageService) Download(hash string) {
 
 	match := fmt.Sprintf("%x", hasher.Sum(nil)) == hash
 	if !match {
-		log.Println("Not OK MITM")
-	} else {
-		log.Println("OK")
+		return errors.New("Hash does not match")
 	}
 
 	gzr, _ := gzip.NewReader(bytes.NewBuffer(bodyBytes))
 	if err := util.ReadTarball(gzr, hash); err != nil {
-		log.Fatal(err)
+		return err
 	}
 
-	log.Println("OK again")
+	return nil
+
 }
