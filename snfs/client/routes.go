@@ -43,6 +43,7 @@ func storageRoutes(storage *fs.Manager) *chi.Mux {
 	router := chi.NewRouter()
 
 	router.Post("/fname/{name}", storeFileController(storage))
+	router.Get("/fname/{hash}", getFileController(storage))
 
 	return router
 }

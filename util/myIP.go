@@ -4,7 +4,6 @@ import (
 	"archive/tar"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"os"
 	"path/filepath"
@@ -86,21 +85,49 @@ func WriteTarball(writer io.Writer, dir string) error {
 	})
 }
 
-func ReadTarball(reader io.Reader) error {
+// ReadTarball reads from reader and creates the resulting directory at target
+func ReadTarball(reader io.Reader, target string) error {
+
 	tr := tar.NewReader(reader)
-	log.Println("Reading tarball")
+
 	for {
 		header, err := tr.Next()
-		log.Println(err)
+
 		switch {
 		case err == io.EOF:
 			return nil
+
 		case err != nil:
 			return err
+
 		case header == nil:
 			continue
+
 		}
 
-		io.Copy(os.Stdout, tr)
+		target := filepath.Join(target, header.Name)
+
+		switch header.Typeflag {
+		case tar.TypeDir:
+			//it is a directory. create it if it does not exist
+			if _, err := os.Stat(target); err != nil {
+				if err := os.MkdirAll(target, 0755); err != nil {
+					return err
+				}
+			}
+
+		case tar.TypeReg:
+			//regular file. create it
+			f, err := os.OpenFile(target, os.O_CREATE|os.O_RDWR, os.FileMode(header.Mode))
+			if err != nil {
+				return err
+			}
+
+			if _, err := io.Copy(f, tr); err != nil {
+				return err
+			}
+
+			f.Close()
+		}
 	}
 }

@@ -76,6 +76,15 @@ func (m *Manager) AddObject(name, hash string, size int64) error {
 	return nil
 }
 
+func (m *Manager) GetObjectPath(name string) (string, error) {
+	obj, ok := m.objects[name]
+	if !ok {
+		return "", errors.New("Object Not Found")
+	}
+
+	return path.Join(m.root, obj.hash), nil
+}
+
 func (m *Manager) delete(name string) error {
 	if err := os.Remove(path.Join(m.root, name)); err != nil {
 		return err

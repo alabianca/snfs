@@ -3,6 +3,11 @@ package services
 import (
 	"bytes"
 	"compress/gzip"
+	"crypto/md5"
+	"fmt"
+	"io"
+	"io/ioutil"
+	"log"
 	"mime/multipart"
 
 	"github.com/alabianca/snfs/util"
@@ -28,14 +33,6 @@ func (s *StorageService) Upload(fname, uploadCntx string) (string, error) {
 	// 1. create destination writer
 	bodyBuf := new(bytes.Buffer)
 	bodyWriter := multipart.NewWriter(bodyBuf)
-	// if fname == "" {
-	// 	hashed, err := hashContents(uploadCntx)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-
-	// 	fname = fmt.Sprintf("%x", hashed)
-	// }
 	fileWriter, err := bodyWriter.CreateFormFile("upload", fname)
 	if err != nil {
 		return "", err
@@ -59,6 +56,8 @@ func (s *StorageService) Upload(fname, uploadCntx string) (string, error) {
 		return "", err
 	}
 
+	defer res.Body.Close()
+
 	var storeRes storageResponse
 	if err := decode(res.Body, &storeRes); err != nil {
 		return "", err
@@ -66,4 +65,37 @@ func (s *StorageService) Upload(fname, uploadCntx string) (string, error) {
 
 	return storeRes.Hash, nil
 
+}
+
+func (s *StorageService) Download(hash string) {
+	url := "v1/storage/fname/" + hash
+	res, err := s.api.Get(url, nil)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+
+	defer res.Body.Close()
+
+	bodyBytes, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	hasher := md5.New()
+	io.Copy(hasher, bytes.NewBuffer(bodyBytes))
+
+	match := fmt.Sprintf("%x", hasher.Sum(nil)) == hash
+	if !match {
+		log.Println("Not OK MITM")
+	} else {
+		log.Println("OK")
+	}
+
+	gzr, _ := gzip.NewReader(bytes.NewBuffer(bodyBytes))
+	if err := util.ReadTarball(gzr, hash); err != nil {
+		log.Fatal(err)
+	}
+
+	log.Println("OK again")
 }

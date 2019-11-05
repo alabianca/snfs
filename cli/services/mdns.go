@@ -53,6 +53,8 @@ func (m *MdnsService) Browse() ([]string, error) {
 		return nil, err
 	}
 
+	defer res.Body.Close()
+
 	var responseMessage instancesResponse
 	if err := decode(res.Body, &responseMessage); err != nil {
 		return nil, err
@@ -70,6 +72,8 @@ func (m *MdnsService) post(url string, body io.Reader) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
+	defer res.Body.Close()
 
 	var responseMessage subscriptionResponse
 	if err := decode(res.Body, &responseMessage); err != nil {

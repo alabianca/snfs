@@ -6,9 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
-	"strings"
+	"os"
 
 	"github.com/alabianca/snfs/util"
 
@@ -116,8 +115,7 @@ func getInstancesController(d *discovery.Manager) http.HandlerFunc {
 
 func storeFileController(storage *fs.Manager) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
-		log.Println("Form Upload EP hit")
-		req.ParseMultipartForm(10 << 20)
+		req.ParseMultipartForm(100 << 20) // 100mgb
 
 		file, header, err := req.FormFile("upload")
 		if err != nil {
@@ -126,9 +124,6 @@ func storeFileController(storage *fs.Manager) http.HandlerFunc {
 		}
 
 		defer file.Close()
-		fmt.Printf("Uploaded File: %+v\n", header.Filename)
-		fmt.Printf("File Size: %+v\n", header.Size)
-		fmt.Printf("MIME Header: %+v\n", header.Header)
 
 		destFile, err := fs.NewFile(storage.GetRoot(), header.Filename)
 		if err != nil {
@@ -161,7 +156,30 @@ func storeFileController(storage *fs.Manager) http.HandlerFunc {
 	}
 }
 
-func getObjectName(path string) string {
-	parts := strings.Split(path, "/")
-	return parts[len(parts)-1]
+func getFileController(storage *fs.Manager) http.HandlerFunc {
+	return func(res http.ResponseWriter, req *http.Request) {
+		fileHash := chi.URLParam(req, "hash")
+		if fileHash == "" {
+			util.Respond(res, util.Message(http.StatusBadRequest, "File has not provided"))
+			return
+		}
+
+		filePath, err := storage.GetObjectPath(fileHash)
+		if err != nil {
+			util.Respond(res, util.Message(http.StatusNotFound, "File Not Found"))
+			return
+		}
+
+		file, err := os.Open(filePath)
+		if err != nil {
+			util.Respond(res, util.Message(http.StatusInternalServerError, err.Error()))
+			return
+		}
+
+		defer file.Close()
+
+		res.WriteHeader(http.StatusOK)
+		res.Header().Add("Content-Type", "application/octet-stream")
+		io.Copy(res, file)
+	}
 }
