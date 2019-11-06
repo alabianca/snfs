@@ -30,6 +30,7 @@ func (m *Manager) Register(instance string) error {
 }
 
 func (m *Manager) UnRegister() {
+	m.mdns.isStarted = false
 	m.mdns.Shutdown()
 }
 
@@ -42,4 +43,8 @@ func (m *Manager) Resolve(instance string) ([]net.IP, error) {
 
 func (m *Manager) Browse() ([]*zeroconf.ServiceEntry, error) {
 	return m.mdns.BrowseFor(m.BrowseTimeout)
+}
+
+func (m *Manager) MDNSStarted() bool {
+	return m.mdns.IsStarted()
 }

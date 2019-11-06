@@ -25,6 +25,7 @@ type MdnsService struct {
 	server       *zeroconf.Server
 	service      string
 	domain       string
+	isStarted    bool
 }
 
 // Option is a variadic configuration function to be passed to Server(option)
@@ -39,6 +40,7 @@ func service(o ...Option) *MdnsService {
 		text:         nil,
 		service:      ZeroConfService,
 		domain:       ZeroConfDomain,
+		isStarted:    false,
 	}
 
 	for _, opt := range o {
@@ -64,6 +66,10 @@ func (mdns *MdnsService) Register(instance string) error {
 		mdns.text,
 		mdns.ifaces,
 	)
+
+	if err == nil {
+		mdns.isStarted = true
+	}
 
 	log.Printf("MDNS [Registered] %s %d %s\n", mdns.service, mdns.port, mdns.instanceName)
 
@@ -188,4 +194,8 @@ func (mdns *MdnsService) Service() string {
 
 func (mdns *MdnsService) SetService(s string) {
 	mdns.service = s
+}
+
+func (mdns *MdnsService) IsStarted() bool {
+	return mdns.isStarted
 }
