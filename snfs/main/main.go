@@ -7,10 +7,13 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"path"
 	"strconv"
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/mitchellh/go-homedir"
 
 	"github.com/alabianca/snfs/util"
 
@@ -29,9 +32,18 @@ const topLevelDomain = ".snfs.com"
 
 func main() {
 	myIP, err := util.MyIP("ipv4")
+
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	home, err := homedir.Dir()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Println("Mounting objects at ", home)
+
 	flag.Parse()
 	done := make(chan os.Signal, 1)
 
@@ -55,7 +67,7 @@ func main() {
 		discovery.MdnsStrategy(configureMDNS(&server)),
 	)
 
-	if err := server.SetStoragePath("/Users/alexander/go/src/github.com/alabianca/snfs"); err != nil {
+	if err := server.SetStoragePath(path.Join(home, "snfs")); err != nil {
 		os.Exit(1)
 	}
 
