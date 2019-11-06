@@ -17,10 +17,15 @@ type subscriptionResponse struct {
 	Message string `json:"message"`
 }
 
+type Node struct {
+	InstanceName string `json:"name"`
+	ID           string `json:"id"`
+}
+
 type instancesResponse struct {
-	Instances []string `json:"data"`
-	Status    int      `json:"status"`
-	Message   string   `json:"message"`
+	Instances []Node `json:"data"`
+	Status    int    `json:"status"`
+	Message   string `json:"message"`
 }
 
 type MdnsService struct {
@@ -47,7 +52,7 @@ func (m *MdnsService) Unregister() (string, error) {
 	return m.post("v1/mdns/unsubscribe", nil)
 }
 
-func (m *MdnsService) Browse() ([]string, error) {
+func (m *MdnsService) Browse() ([]Node, error) {
 	res, err := m.api.Get("v1/mdns/instance", nil)
 	if err != nil {
 		return nil, err

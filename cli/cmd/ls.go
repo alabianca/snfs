@@ -28,7 +28,7 @@ var lsCmd = &cobra.Command{
 
 func runLs() {
 	sig := make(chan os.Signal, 1)
-	browser := make(chan []string)
+	browser := make(chan []services.Node)
 	errChan := make(chan error)
 	signal.Notify(sig, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	spinner := spin.NewSpinner(spin.Dots2, os.Stdout)
@@ -53,10 +53,10 @@ func printError(err error) {
 	fmt.Printf("[Error]: %s\n", err)
 }
 
-func printBrowseResults(instances []string) {
+func printBrowseResults(instances []services.Node) {
 	fmt.Printf("Found %d Result(s)\n", len(instances))
 	for _, i := range instances {
-		fmt.Printf("* %s\n", i)
+		fmt.Printf("* %s -> %s\n", i.InstanceName, i.ID)
 	}
 
 	fmt.Println()
@@ -67,7 +67,7 @@ func initSpinnerWithText(spinner spin.Spinner, text string) {
 	spinner.Start()
 }
 
-func browse(done chan []string, errChan chan error) {
+func browse(done chan []services.Node, errChan chan error) {
 	mdns := services.NewMdnsService()
 	instances, err := mdns.Browse()
 	if err != nil {

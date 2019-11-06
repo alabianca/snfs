@@ -8,6 +8,9 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
+
+	"github.com/grandcat/zeroconf"
 
 	"github.com/alabianca/snfs/util"
 
@@ -105,10 +108,24 @@ func getInstancesController(d *discovery.Manager) http.HandlerFunc {
 			return
 		}
 
-		instances := make([]string, len(entries))
+		instances := make([]InstanceResponse, len(entries))
+
+		mapper := func(entry *zeroconf.ServiceEntry) InstanceResponse {
+			var instance InstanceResponse
+			instance.InstanceName = entry.Instance
+
+			for _, txt := range entry.Text {
+				if strings.Contains(txt, "NodeID") {
+					instance.ID = strings.Split(txt, ":")[1]
+					break
+				}
+			}
+
+			return instance
+		}
 
 		for i, entry := range entries {
-			instances[i] = entry.Instance
+			instances[i] = mapper(entry)
 		}
 
 		response := util.Message(http.StatusOK, "Ok")

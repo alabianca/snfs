@@ -18,8 +18,7 @@ func NewManager(mdns *MdnsService) *Manager {
 	m := Manager{
 		ResolveTimeout: time.Second * 5,
 		BrowseTimeout:  time.Second * 5,
-		//strategy:       s,
-		mdns: mdns,
+		mdns:           mdns,
 	}
 
 	return &m

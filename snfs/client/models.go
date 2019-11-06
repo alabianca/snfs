@@ -18,6 +18,11 @@ type LookupResponse struct {
 	IPs []net.IP `json:"ips"`
 }
 
+type InstanceResponse struct {
+	InstanceName string `json:"name"`
+	ID           string `json:"id"`
+}
+
 type FileUploadRequest struct {
 	Path string `json:"path"`
 }
