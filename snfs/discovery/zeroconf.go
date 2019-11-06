@@ -31,7 +31,7 @@ type MdnsService struct {
 type Option func(s *MdnsService)
 
 // Service creates a new service that is disoverable within the local network
-func Service(o ...Option) MDNS {
+func service(o ...Option) *MdnsService {
 	mdns := MdnsService{
 		instanceName: "defaultInstanceName",
 		port:         4200,

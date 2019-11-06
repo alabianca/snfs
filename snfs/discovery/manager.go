@@ -11,34 +11,35 @@ import (
 type Manager struct {
 	ResolveTimeout time.Duration
 	BrowseTimeout  time.Duration
-	strategy       Strategy
+	mdns           *MdnsService
 }
 
-func NewManager(s Strategy) *Manager {
+func NewManager(mdns *MdnsService) *Manager {
 	m := Manager{
 		ResolveTimeout: time.Second * 5,
 		BrowseTimeout:  time.Second * 5,
-		strategy:       s,
+		//strategy:       s,
+		mdns: mdns,
 	}
 
 	return &m
 }
 
 func (m *Manager) Register(instance string) error {
-	return m.strategy.Register(instance)
+	return m.mdns.Register(instance)
 }
 
 func (m *Manager) UnRegister() {
-	m.strategy.Shutdown()
+	m.mdns.Shutdown()
 }
 
 func (m *Manager) Resolve(instance string) ([]net.IP, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), m.ResolveTimeout)
 	defer cancel()
 
-	return m.strategy.Lookup(ctx, instance)
+	return m.mdns.Lookup(ctx, instance)
 }
 
 func (m *Manager) Browse() ([]*zeroconf.ServiceEntry, error) {
-	return m.strategy.BrowseFor(m.BrowseTimeout)
+	return m.mdns.BrowseFor(m.BrowseTimeout)
 }

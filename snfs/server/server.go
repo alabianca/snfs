@@ -3,7 +3,9 @@ package server
 import (
 	"context"
 	"errors"
+	"log"
 
+	"github.com/alabianca/snfs/snfs/net"
 	"github.com/alabianca/snfs/snfs/peer"
 
 	"github.com/alabianca/snfs/snfs/client"
@@ -19,6 +21,12 @@ type Server struct {
 	ClientConnectivity *client.ConnectivityService
 	PeerService        *peer.Manager
 	Storage            *fs.Manager
+	DHT                *net.DHT
+}
+
+func (s *Server) InitializeDHT() {
+	log.Printf("Initializing DHT at %s -> %d\n", s.Addr, s.Port)
+	s.DHT = net.NewDHT(net.NewUDPRPCAdapter(s.Port, s.Addr))
 }
 
 func (s *Server) MountStorage(storage *fs.Manager) {
@@ -38,8 +46,8 @@ func (s *Server) SetStoragePath(path string) error {
 	return nil
 }
 
-func (s *Server) SetDiscoveryManager(strategy discovery.Strategy) {
-	s.DiscoveryManager = discovery.NewManager(strategy)
+func (s *Server) SetDiscoveryManager(mdns *discovery.MdnsService) {
+	s.DiscoveryManager = discovery.NewManager(mdns)
 }
 
 func (s *Server) StartClientConnectivityService(addr string, port int) {

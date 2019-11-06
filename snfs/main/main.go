@@ -7,9 +7,12 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/alabianca/snfs/util"
 
 	"github.com/alabianca/snfs/snfs/fs"
 
@@ -25,13 +28,22 @@ var instance = flag.String("i", "default", "Instance Name")
 const topLevelDomain = ".snfs.com"
 
 func main() {
+	myIP, err := util.MyIP("ipv4")
+	if err != nil {
+		log.Fatal(err)
+	}
 	flag.Parse()
 	done := make(chan os.Signal, 1)
 
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	addr := ""
 
-	server := server.Server{}
+	server := server.Server{
+		Port: 5050,
+		Addr: myIP.String(),
+	}
+
+	server.InitializeDHT()
 
 	// initialize file storage
 	server.MountStorage(
@@ -40,7 +52,7 @@ func main() {
 
 	// set up discovery strategy
 	server.SetDiscoveryManager(
-		discovery.MdnsStrategy(mdnsConfig),
+		discovery.MdnsStrategy(configureMDNS(&server)),
 	)
 
 	if err := server.SetStoragePath("/Users/alexander/go/src/github.com/alabianca/snfs"); err != nil {
@@ -48,8 +60,10 @@ func main() {
 	}
 
 	// Client connectivity services like http/protobuf
+	// TODO: Switch addr with real IP
 	server.StartClientConnectivityService(addr, *cport)
 	// Start the peer service. (service discoverable by other peers in local network)
+	// TODO: Switch addr with real IP
 	server.StartPeerService(addr, *dport)
 	// Serve in separate go-routines
 	clientConnectivityExited := serveHTTP(&server, server.ClientConnectivity)
@@ -75,9 +89,16 @@ func main() {
 
 }
 
-func mdnsConfig(m *discovery.MdnsService) {
-	m.SetPort(*dport)
-
+func configureMDNS(s *server.Server) discovery.Option {
+	return func(m *discovery.MdnsService) {
+		m.SetPort(*dport)
+		text := []string{
+			"Port:" + strconv.Itoa(s.Port),
+			"Address:" + s.Addr,
+			"NodeID:" + fmt.Sprintf("%x", s.DHT.Table.ID.Bytes()),
+		}
+		m.SetText(text)
+	}
 }
 
 func splitFromTopLevelDomain(instance string) (string, error) {
