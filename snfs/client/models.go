@@ -21,6 +21,8 @@ type LookupResponse struct {
 type InstanceResponse struct {
 	InstanceName string `json:"name"`
 	ID           string `json:"id"`
+	Port         int64  `json:"port"`
+	Address      string `json:"address"`
 }
 
 type FileUploadRequest struct {

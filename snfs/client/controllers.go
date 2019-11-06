@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/grandcat/zeroconf"
@@ -115,9 +116,20 @@ func getInstancesController(d *discovery.Manager) http.HandlerFunc {
 			instance.InstanceName = entry.Instance
 
 			for _, txt := range entry.Text {
-				if strings.Contains(txt, "NodeID") {
-					instance.ID = strings.Split(txt, ":")[1]
-					break
+				keyVal := strings.Split(txt, ":")
+				key := keyVal[0]
+				val := keyVal[1]
+				if key == "NodeID" {
+					instance.ID = val
+				}
+				if key == "Port" {
+					if p, err := strconv.ParseInt(val, 10, 16); err == nil {
+						instance.Port = p
+					}
+				}
+
+				if key == "Address" {
+					instance.Address = val
 				}
 			}
 

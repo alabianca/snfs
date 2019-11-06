@@ -20,6 +20,8 @@ type subscriptionResponse struct {
 type Node struct {
 	InstanceName string `json:"name"`
 	ID           string `json:"id"`
+	Port         int64  `json:"port"`
+	Address      string `json:"address"`
 }
 
 type instancesResponse struct {

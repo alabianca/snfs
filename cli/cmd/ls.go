@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"text/tabwriter"
 
 	"github.com/alabianca/snfs/cli/services"
 
@@ -55,10 +56,14 @@ func printError(err error) {
 
 func printBrowseResults(instances []services.Node) {
 	fmt.Printf("Found %d Result(s)\n", len(instances))
+	fmt.Println()
+	writer := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', tabwriter.Debug)
+	fmt.Fprintln(writer, "Instance\tPort\tAddress\tID\t")
 	for _, i := range instances {
-		fmt.Printf("* %s -> %s\n", i.InstanceName, i.ID)
+		fmt.Fprintf(writer, "%s\t%d\t%s\t%s\t\n", i.InstanceName, i.Port, i.Address, i.ID)
+		//fmt.Printf("* %s -> %s\n", i.InstanceName, i.ID)
 	}
-
+	writer.Flush()
 	fmt.Println()
 }
 
