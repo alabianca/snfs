@@ -12,8 +12,8 @@ import (
 const (
 	// ZeroConfService is the service name of all snfs services
 	ZeroConfService = "_snfs._tcp"
-	// ZeroConfDomain '.local'
-	ZeroConfDomain = ".local"
+	// ZeroConfDomain 'local.'
+	ZeroConfDomain = "local."
 )
 
 // MdnsService is a service that is discoverable in the local network
