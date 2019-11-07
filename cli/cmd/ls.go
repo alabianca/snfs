@@ -61,7 +61,6 @@ func printBrowseResults(instances []services.Node) {
 	fmt.Fprintln(writer, "Instance\tPort\tAddress\tID\t")
 	for _, i := range instances {
 		fmt.Fprintf(writer, "%s\t%d\t%s\t%s\t\n", i.InstanceName, i.Port, i.Address, i.ID)
-		//fmt.Printf("* %s -> %s\n", i.InstanceName, i.ID)
 	}
 	writer.Flush()
 	fmt.Println()

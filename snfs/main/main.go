@@ -107,7 +107,7 @@ func configureMDNS(s *server.Server) discovery.Option {
 		text := []string{
 			"Port:" + strconv.Itoa(s.Port),
 			"Address:" + s.Addr,
-			"NodeID:" + fmt.Sprintf("%x", s.DHT.Table.ID.Bytes()),
+			"NodeID:" + fmt.Sprintf("%x", s.GetOwnID()),
 		}
 		m.SetText(text)
 	}

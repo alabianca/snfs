@@ -3,6 +3,7 @@ package client
 import (
 	"github.com/alabianca/snfs/snfs/discovery"
 	"github.com/alabianca/snfs/snfs/fs"
+	"github.com/alabianca/snfs/snfs/kadnet"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/render"
@@ -23,6 +24,7 @@ func restAPIRoutes(c *ConnectivityService) *chi.Mux {
 	router.Route("/api/v1", func(r chi.Router) {
 		r.Mount("/mdns", mdnsRoutes(c.discovery))
 		r.Mount("/storage", storageRoutes(c.storage))
+		r.Mount("/bootstrap", bootstrapRoutes(c.rpc))
 	})
 
 	return router
@@ -44,6 +46,14 @@ func storageRoutes(storage *fs.Manager) *chi.Mux {
 
 	router.Post("/fname/{name}", storeFileController(storage))
 	router.Get("/fname/{hash}", getFileController(storage))
+
+	return router
+}
+
+func bootstrapRoutes(rpc kadnet.RPC) *chi.Mux {
+	router := chi.NewRouter()
+
+	router.Post("/bootstrap", bootstrapController(rpc))
 
 	return router
 }

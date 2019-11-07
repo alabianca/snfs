@@ -9,6 +9,7 @@ import (
 	"github.com/alabianca/snfs/snfs/fs"
 
 	"github.com/alabianca/snfs/snfs/discovery"
+	"github.com/alabianca/snfs/snfs/kadnet"
 )
 
 type ConnectivityService struct {
@@ -17,12 +18,14 @@ type ConnectivityService struct {
 	discovery  *discovery.Manager
 	httpServer *http.Server
 	storage    *fs.Manager
+	rpc        kadnet.RPC
 }
 
-func NewConnectivityService(dManager *discovery.Manager, storage *fs.Manager) *ConnectivityService {
+func NewConnectivityService(dManager *discovery.Manager, storage *fs.Manager, rpc kadnet.RPC) *ConnectivityService {
 	return &ConnectivityService{
 		discovery: dManager,
 		storage:   storage,
+		rpc:       rpc,
 	}
 }
 

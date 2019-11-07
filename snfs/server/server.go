@@ -5,7 +5,7 @@ import (
 	"errors"
 	"log"
 
-	"github.com/alabianca/snfs/snfs/net"
+	"github.com/alabianca/snfs/snfs/kadnet"
 	"github.com/alabianca/snfs/snfs/peer"
 
 	"github.com/alabianca/snfs/snfs/client"
@@ -21,12 +21,12 @@ type Server struct {
 	ClientConnectivity *client.ConnectivityService
 	PeerService        *peer.Manager
 	Storage            *fs.Manager
-	DHT                *net.DHT
+	RpcManager         kadnet.RPC
 }
 
 func (s *Server) InitializeDHT() {
 	log.Printf("Initializing DHT at %s -> %d\n", s.Addr, s.Port)
-	s.DHT = net.NewDHT(net.NewUDPRPCAdapter(s.Port, s.Addr))
+	s.RpcManager = kadnet.NewRPCManager(s.Addr, s.Port)
 }
 
 func (s *Server) MountStorage(storage *fs.Manager) {
@@ -51,7 +51,7 @@ func (s *Server) SetDiscoveryManager(mdns *discovery.MdnsService) {
 }
 
 func (s *Server) StartClientConnectivityService(addr string, port int) {
-	s.ClientConnectivity = client.NewConnectivityService(s.DiscoveryManager, s.Storage)
+	s.ClientConnectivity = client.NewConnectivityService(s.DiscoveryManager, s.Storage, s.RpcManager)
 	s.ClientConnectivity.SetAddr(addr, port)
 
 }
@@ -67,6 +67,10 @@ func (s *Server) HTTPListenAndServe(service Rest) error {
 	}
 
 	return service.REST()
+}
+
+func (s *Server) GetOwnID() []byte {
+	return s.RpcManager.GetID()
 }
 
 func (s *Server) Shutdown(ctx context.Context) error {

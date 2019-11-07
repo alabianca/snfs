@@ -16,6 +16,7 @@ import (
 	"github.com/alabianca/snfs/util"
 
 	"github.com/alabianca/snfs/snfs/fs"
+	"github.com/alabianca/snfs/snfs/kadnet"
 
 	"github.com/go-chi/chi"
 
@@ -215,5 +216,25 @@ func getFileController(storage *fs.Manager) http.HandlerFunc {
 		res.WriteHeader(http.StatusOK)
 		res.Header().Add("Content-Type", "application/octet-stream")
 		io.Copy(res, file)
+	}
+}
+
+func bootstrapController(rpc kadnet.RPC) http.HandlerFunc {
+	return func(res http.ResponseWriter, req *http.Request) {
+		var br BootstrapRequest
+
+		buf := new(bytes.Buffer)
+		if _, err := io.Copy(buf, req.Body); err != nil {
+			util.Respond(res, util.Message(http.StatusInternalServerError, err.Error()))
+			return
+		}
+
+		if err := json.Unmarshal(buf.Bytes(), &br); err != nil {
+			util.Respond(res, util.Message(http.StatusBadRequest, err.Error()))
+			return
+		}
+
+		rpc.Bootstrap(br.Port, br.Address, br.ID)
+
 	}
 }
