@@ -1,6 +1,12 @@
 package cmd
 
-import "github.com/spf13/cobra"
+import (
+	"log"
+	"strconv"
+
+	"github.com/alabianca/snfs/cli/services"
+	"github.com/spf13/cobra"
+)
 
 func init() {
 	rootCmd.AddCommand(bootstrapCmd)
@@ -12,6 +18,13 @@ var bootstrapCmd = &cobra.Command{
 	Args:  cobra.MinimumNArgs(3),
 	Long:  `Bootstrap your node and join the network by contacting a bootstrap node (id) at port,ip `,
 	Run: func(cmd *cobra.Command, args []string) {
+		bs := services.NewBootstrapService()
 
+		port, err := strconv.ParseInt(args[0], 10, 16)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		bs.Boostrap(int(port), args[1], args[2])
 	},
 }

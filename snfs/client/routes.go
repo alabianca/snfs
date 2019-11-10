@@ -24,7 +24,7 @@ func restAPIRoutes(c *ConnectivityService) *chi.Mux {
 	router.Route("/api/v1", func(r chi.Router) {
 		r.Mount("/mdns", mdnsRoutes(c.discovery))
 		r.Mount("/storage", storageRoutes(c.storage))
-		r.Mount("/bootstrap", bootstrapRoutes(c.rpc))
+		r.Mount("/discovery", bootstrapRoutes(c.rpc))
 	})
 
 	return router
