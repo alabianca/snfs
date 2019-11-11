@@ -40,10 +40,6 @@ func main() {
 
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
-	// server := server.Server{
-	// 	Port: 5050,
-	// 	Addr: myIP.String(),
-	// }
 	server := server.New(5050, myIP.String())
 
 	services := resolveServices(server)
@@ -51,6 +47,10 @@ func main() {
 	go func() {
 		serverExit <- server.Run()
 	}()
+
+	// start the storage service immediately
+	ss, _ := services[fs.ServiceName]
+	server.StartJob(ss)
 
 	// start the client connectivity service immediately
 	cc, _ := services[client.ServiceName]
@@ -67,10 +67,10 @@ func main() {
 }
 
 func resolveServices(s *server.Server) map[string]server.Job {
-	rpc := s.InitializeDHT()
-	storage := s.MountStorage(fs.NewManager())
+	rpc := s.SetRPCManager()
+	storage := s.SetStorageManager(fs.NewManager())
 	dm := s.SetDiscoveryManager(discovery.MdnsStrategy(configureMDNS(s)))
-	cc := s.StartClientConnectivityService(*cport)
+	cc := s.SetClientConnectivityService(*cport)
 
 	services := map[string]server.Job{
 		rpc.Name():     rpc,
@@ -103,14 +103,3 @@ func splitFromTopLevelDomain(instance string) (string, error) {
 
 	return split[0], nil
 }
-
-// func serveHTTP(server *server.Server, service server.Rest) chan bool {
-// 	done := make(chan bool)
-// 	go func() {
-// 		if err := server.HTTPListenAndServe(service); err != nil {
-// 			done <- true
-// 		}
-// 	}()
-
-// 	return done
-// }

@@ -1,10 +1,10 @@
 package server
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/alabianca/snfs/snfs/kadnet"
-	"github.com/alabianca/snfs/snfs/peer"
 
 	"github.com/alabianca/snfs/snfs/client"
 	"github.com/alabianca/snfs/snfs/fs"
@@ -21,36 +21,36 @@ type Job interface {
 	Name() string
 }
 
+type startJob struct {
+	job Job
+	err error
+}
+
 type Server struct {
 	Port               int
 	Addr               string
 	DiscoveryManager   *discovery.Manager
 	ClientConnectivity *client.ConnectivityService
-	PeerService        *peer.Manager
 	Storage            *fs.Manager
 	RPCManager         kadnet.RPCManager
 	// channels
-	startJob chan Job
-	stopJob  chan Job
-	stopAll  chan bool
-	exit     chan error
+	startJob    chan Job
+	stopJob     chan Job
+	stopAll     chan bool
+	exit        chan error
+	exitService chan string
 }
 
 func New(port int, host string) *Server {
 	return &Server{
-		Port:     port,
-		Addr:     host,
-		startJob: make(chan Job, numJobs),
-		stopJob:  make(chan Job, 1),
-		stopAll:  make(chan bool),
-		exit:     make(chan error),
+		Port:        port,
+		Addr:        host,
+		startJob:    make(chan Job, numJobs),
+		stopJob:     make(chan Job, 1),
+		stopAll:     make(chan bool),
+		exit:        make(chan error),
+		exitService: make(chan string),
 	}
-}
-
-func (s *Server) InitializeDHT() Job {
-	log.Printf("Initializing DHT at %s -> %d\n", s.Addr, s.Port)
-	s.RPCManager = kadnet.NewRPCManager(s.Addr, s.Port)
-	return s.RPCManager
 }
 
 func (s *Server) StartJob(job Job) {
@@ -58,38 +58,26 @@ func (s *Server) StartJob(job Job) {
 	s.startJob <- job
 }
 
-func (s *Server) MountStorage(storage *fs.Manager) Job {
+func (s *Server) SetRPCManager() Job {
+	log.Printf("Initializing DHT at %s -> %d\n", s.Addr, s.Port)
+	s.RPCManager = kadnet.NewRPCManager(s.Addr, s.Port)
+	return s.RPCManager
+}
+
+func (s *Server) SetStorageManager(storage *fs.Manager) Job {
 	s.Storage = storage
 	return s.Storage
 }
-
-// func (s *Server) SetStoragePath(path string) error {
-// 	if s.Storage == nil {
-// 		return errors.New("Storage Manager Not Set")
-// 	}
-
-// 	s.Storage.SetRoot(path)
-// 	if err := s.Storage.CreateRootDir(); err != nil {
-// 		return err
-// 	}
-
-// 	return nil
-// }
 
 func (s *Server) SetDiscoveryManager(mdns *discovery.MdnsService) Job {
 	s.DiscoveryManager = discovery.NewManager(mdns)
 	return s.DiscoveryManager
 }
 
-func (s *Server) StartClientConnectivityService(port int) Job {
+func (s *Server) SetClientConnectivityService(port int) Job {
 	s.ClientConnectivity = client.NewConnectivityService(s.DiscoveryManager, s.Storage, s.RPCManager)
 	s.ClientConnectivity.SetAddr("", port)
 	return s.ClientConnectivity
-}
-
-func (s *Server) StartPeerService(addr string, port int) {
-	s.PeerService = peer.NewManager(s.Storage)
-	s.PeerService.SetAddr(addr, port)
 }
 
 func (s *Server) GetOwnID() string {
@@ -102,11 +90,15 @@ func (s *Server) Run() error {
 	go s.mainLoop()
 
 	err := <-s.exit
+	log.Println("Exiting Main Loop")
 	return err
 }
 
 func (s *Server) Shutdown() {
 	s.stopAll <- true
+	for s := range s.exitService {
+		log.Println(s)
+	}
 }
 
 func (s *Server) mainLoop() {
@@ -128,10 +120,13 @@ func (s *Server) mainLoop() {
 			}
 
 		case <-s.stopAll:
+			log.Printf("Stopping All Services (%d)\n", len(jobs))
 			for _, j := range jobs {
 				j.Shutdown()
-				log.Printf("Stopped Service %s (%s)\n", j.ID(), j.Name())
+				s.exitService <- fmt.Sprintf("Stopped Service %s (%s)\n", j.ID(), j.Name())
 			}
+
+			close(s.exitService)
 
 			log.Println("All Services Stopped")
 
