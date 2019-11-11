@@ -50,7 +50,7 @@ func storageRoutes(storage *fs.Manager) *chi.Mux {
 	return router
 }
 
-func bootstrapRoutes(rpc kadnet.RPC) *chi.Mux {
+func bootstrapRoutes(rpc kadnet.RPCManager) *chi.Mux {
 	router := chi.NewRouter()
 
 	router.Post("/bootstrap", bootstrapController(rpc))

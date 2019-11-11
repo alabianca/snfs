@@ -22,7 +22,7 @@ func (dht *DHT) GetOwnID() []byte {
 	return dht.Table.ID.Bytes()
 }
 
-func (dht *DHT) Bootstrap(port int, ip, idHex string) {
+func (dht *DHT) Bootstrap(port int, ip, idHex string) (*gokad.Contact, int, error) {
 
-	dht.Table.Bootstrap(port, net.ParseIP(ip), idHex)
+	return dht.Table.Bootstrap(port, net.ParseIP(ip), idHex)
 }

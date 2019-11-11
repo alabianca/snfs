@@ -2,9 +2,13 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/http"
 	"strconv"
+	"time"
+
+	"github.com/alabianca/snfs/util"
 
 	"github.com/alabianca/snfs/snfs/fs"
 
@@ -12,21 +16,31 @@ import (
 	"github.com/alabianca/snfs/snfs/kadnet"
 )
 
+const ServiceName = "ClientConnectivityService"
+
 type ConnectivityService struct {
 	Addr       string
 	Port       int
 	discovery  *discovery.Manager
 	httpServer *http.Server
 	storage    *fs.Manager
-	rpc        kadnet.RPC
+	rpc        kadnet.RPCManager
+	id         []byte
+	name       string
 }
 
-func NewConnectivityService(dManager *discovery.Manager, storage *fs.Manager, rpc kadnet.RPC) *ConnectivityService {
-	return &ConnectivityService{
+func NewConnectivityService(dManager *discovery.Manager, storage *fs.Manager, rpc kadnet.RPCManager) *ConnectivityService {
+
+	c := &ConnectivityService{
 		discovery: dManager,
 		storage:   storage,
 		rpc:       rpc,
+		id:        make([]byte, 20),
 	}
+
+	util.RandomID(c.id)
+
+	return c
 }
 
 func (c *ConnectivityService) SetAddr(addr string, port int) {
@@ -45,9 +59,25 @@ func (c *ConnectivityService) REST() error {
 	return c.httpServer.ListenAndServe()
 }
 
-func (c *ConnectivityService) Shutdown(ctx context.Context) error {
+// JOB
+
+func (c *ConnectivityService) Run() error {
+	return c.REST()
+}
+
+func (c *ConnectivityService) ID() string {
+	return fmt.Sprintf("%x", c.id)
+}
+
+func (c *ConnectivityService) Shutdown() error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
 	if c.httpServer != nil {
 		return c.httpServer.Shutdown(ctx)
 	}
 	return nil
+}
+
+func (c *ConnectivityService) Name() string {
+	return ServiceName
 }

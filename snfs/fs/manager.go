@@ -3,24 +3,37 @@ package fs
 import (
 	"archive/tar"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path"
 	"path/filepath"
+
+	"github.com/alabianca/snfs/util"
+
+	"github.com/mitchellh/go-homedir"
 )
+
+const ServiceName = "StorageManager"
 
 // Manager maintains a list of files that are currently
 // shared in the local network
 type Manager struct {
 	root    string
 	objects map[string]*object
+	id      []byte
 }
 
 // NewManager returns a Manager with zero files
 func NewManager() *Manager {
-	return &Manager{
+	m := &Manager{
 		objects: make(map[string]*object),
+		id:      make([]byte, 20),
 	}
+
+	util.RandomID(m.id)
+
+	return m
 }
 
 // GetRoot returns the manager's root storage path
@@ -48,12 +61,6 @@ func (m *Manager) CreateRootDir() error {
 	}
 
 	return nil
-}
-
-func (m *Manager) Shutdown() {
-	for k, _ := range m.objects {
-		m.delete(k)
-	}
 }
 
 // AddObject adds a file object to manager's memory
@@ -93,6 +100,37 @@ func (m *Manager) delete(name string) error {
 	delete(m.objects, name)
 
 	return nil
+}
+
+// JOB
+
+func (m *Manager) Run() error {
+	home, err := homedir.Dir()
+	if err != nil {
+		return err
+	}
+	m.SetRoot(path.Join(home, "snfs"))
+	if err := m.CreateRootDir(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *Manager) ID() string {
+	return fmt.Sprintf("%x", m.id)
+}
+
+func (m *Manager) Shutdown() error {
+	for k, _ := range m.objects {
+		m.delete(k)
+	}
+
+	return nil
+}
+
+func (m *Manager) Name() string {
+	return ServiceName
 }
 
 // NewFile created a new temporary file with format buffer*.tar.gzip

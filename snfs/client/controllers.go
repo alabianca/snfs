@@ -54,7 +54,7 @@ func startMDNSController(d *discovery.Manager) http.HandlerFunc {
 
 func stopMDNSController(d *discovery.Manager) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
-		d.UnRegister()
+		d.Shutdown()
 		util.Respond(res, util.Message(http.StatusOK, "MDNS Stopped"))
 	}
 }
@@ -219,7 +219,7 @@ func getFileController(storage *fs.Manager) http.HandlerFunc {
 	}
 }
 
-func bootstrapController(rpc kadnet.RPC) http.HandlerFunc {
+func bootstrapController(rpc kadnet.RPCManager) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
 		var br BootstrapRequest
 

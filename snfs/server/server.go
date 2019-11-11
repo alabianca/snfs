@@ -1,8 +1,6 @@
 package server
 
 import (
-	"context"
-	"errors"
 	"log"
 
 	"github.com/alabianca/snfs/snfs/kadnet"
@@ -14,6 +12,15 @@ import (
 	"github.com/alabianca/snfs/snfs/discovery"
 )
 
+const numJobs = 5
+
+type Job interface {
+	Run() error
+	Shutdown() error
+	ID() string
+	Name() string
+}
+
 type Server struct {
 	Port               int
 	Addr               string
@@ -21,39 +28,63 @@ type Server struct {
 	ClientConnectivity *client.ConnectivityService
 	PeerService        *peer.Manager
 	Storage            *fs.Manager
-	RpcManager         kadnet.RPC
+	RPCManager         kadnet.RPCManager
+	// channels
+	startJob chan Job
+	stopJob  chan Job
+	stopAll  chan bool
+	exit     chan error
 }
 
-func (s *Server) InitializeDHT() {
+func New(port int, host string) *Server {
+	return &Server{
+		Port:     port,
+		Addr:     host,
+		startJob: make(chan Job, numJobs),
+		stopJob:  make(chan Job, 1),
+		stopAll:  make(chan bool),
+		exit:     make(chan error),
+	}
+}
+
+func (s *Server) InitializeDHT() Job {
 	log.Printf("Initializing DHT at %s -> %d\n", s.Addr, s.Port)
-	s.RpcManager = kadnet.NewRPCManager(s.Addr, s.Port)
+	s.RPCManager = kadnet.NewRPCManager(s.Addr, s.Port)
+	return s.RPCManager
 }
 
-func (s *Server) MountStorage(storage *fs.Manager) {
+func (s *Server) StartJob(job Job) {
+	log.Printf("Starting Job %s (%s)\n", job.ID(), job.Name())
+	s.startJob <- job
+}
+
+func (s *Server) MountStorage(storage *fs.Manager) Job {
 	s.Storage = storage
+	return s.Storage
 }
 
-func (s *Server) SetStoragePath(path string) error {
-	if s.Storage == nil {
-		return errors.New("Storage Manager Not Set")
-	}
+// func (s *Server) SetStoragePath(path string) error {
+// 	if s.Storage == nil {
+// 		return errors.New("Storage Manager Not Set")
+// 	}
 
-	s.Storage.SetRoot(path)
-	if err := s.Storage.CreateRootDir(); err != nil {
-		return err
-	}
+// 	s.Storage.SetRoot(path)
+// 	if err := s.Storage.CreateRootDir(); err != nil {
+// 		return err
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
-func (s *Server) SetDiscoveryManager(mdns *discovery.MdnsService) {
+func (s *Server) SetDiscoveryManager(mdns *discovery.MdnsService) Job {
 	s.DiscoveryManager = discovery.NewManager(mdns)
+	return s.DiscoveryManager
 }
 
-func (s *Server) StartClientConnectivityService(addr string, port int) {
-	s.ClientConnectivity = client.NewConnectivityService(s.DiscoveryManager, s.Storage, s.RpcManager)
-	s.ClientConnectivity.SetAddr(addr, port)
-
+func (s *Server) StartClientConnectivityService(port int) Job {
+	s.ClientConnectivity = client.NewConnectivityService(s.DiscoveryManager, s.Storage, s.RPCManager)
+	s.ClientConnectivity.SetAddr("", port)
+	return s.ClientConnectivity
 }
 
 func (s *Server) StartPeerService(addr string, port int) {
@@ -61,26 +92,50 @@ func (s *Server) StartPeerService(addr string, port int) {
 	s.PeerService.SetAddr(addr, port)
 }
 
-func (s *Server) HTTPListenAndServe(service Rest) error {
-	if service == nil {
-		return errors.New("nil service provided")
+func (s *Server) GetOwnID() string {
+	return s.RPCManager.ID()
+}
+
+func (s *Server) Run() error {
+	log.Printf("Running Server at %s:%d\n", s.Addr, s.Port)
+
+	go s.mainLoop()
+
+	err := <-s.exit
+	return err
+}
+
+func (s *Server) Shutdown() {
+	s.stopAll <- true
+}
+
+func (s *Server) mainLoop() {
+	jobs := make([]Job, 0)
+	for {
+		select {
+		case job := <-s.startJob:
+			jobs = append(jobs, job)
+			go func() {
+				log.Printf("Running %s (%s)\n", job.ID(), job.Name())
+				job.Run()
+			}()
+		case job := <-s.stopJob:
+			for _, j := range jobs {
+				if j.ID() == job.ID() {
+					j.Shutdown()
+					log.Printf("Stopped Service %s (%s)\n", j.ID(), j.Name())
+				}
+			}
+
+		case <-s.stopAll:
+			for _, j := range jobs {
+				j.Shutdown()
+				log.Printf("Stopped Service %s (%s)\n", j.ID(), j.Name())
+			}
+
+			log.Println("All Services Stopped")
+
+			s.exit <- nil
+		}
 	}
-
-	return service.REST()
-}
-
-func (s *Server) GetOwnID() []byte {
-	return s.RpcManager.GetID()
-}
-
-func (s *Server) Shutdown(ctx context.Context) error {
-	defer func() {
-		s.Storage.Shutdown()
-	}()
-
-	// stop mdns
-	s.DiscoveryManager.UnRegister()
-	// stop accepting connections
-	s.ClientConnectivity.Shutdown(ctx)
-	return s.PeerService.Shutdown(ctx)
 }

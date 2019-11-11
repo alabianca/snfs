@@ -1,19 +1,16 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"log"
 	"os"
 	"os/signal"
-	"path"
 	"strconv"
 	"strings"
 	"syscall"
-	"time"
 
-	"github.com/mitchellh/go-homedir"
+	"github.com/alabianca/snfs/snfs/client"
 
 	"github.com/alabianca/snfs/util"
 
@@ -37,67 +34,52 @@ func main() {
 		log.Fatal(err)
 	}
 
-	home, err := homedir.Dir()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	log.Println("Mounting objects at ", home)
-
 	flag.Parse()
 	done := make(chan os.Signal, 1)
+	serverExit := make(chan error)
 
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
-	addr := ""
 
-	server := server.Server{
-		Port: 5050,
-		Addr: myIP.String(),
-	}
+	// server := server.Server{
+	// 	Port: 5050,
+	// 	Addr: myIP.String(),
+	// }
+	server := server.New(5050, myIP.String())
 
-	server.InitializeDHT()
+	services := resolveServices(server)
 
-	// initialize file storage
-	server.MountStorage(
-		fs.NewManager(),
-	)
-
-	// set up discovery strategy
-	server.SetDiscoveryManager(
-		discovery.MdnsStrategy(configureMDNS(&server)),
-	)
-
-	if err := server.SetStoragePath(path.Join(home, "snfs")); err != nil {
-		os.Exit(1)
-	}
-
-	// Client connectivity services like http/protobuf
-	// TODO: Switch addr with real IP
-	server.StartClientConnectivityService(addr, *cport)
-	// Start the peer service. (service discoverable by other peers in local network)
-	// TODO: Switch addr with real IP
-	server.StartPeerService(addr, *dport)
-	// Serve in separate go-routines
-	clientConnectivityExited := serveHTTP(&server, server.ClientConnectivity)
-	peerServiceExited := serveHTTP(&server, server.PeerService)
-
-	// Wait for termination signal to attempt graceful shutdown
-	<-done
-	// Shutdown server gracefully
-	log.Println("Server Stopped...")
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer func() {
-		// possibly more cleanup here
-		cancel()
+	go func() {
+		serverExit <- server.Run()
 	}()
 
-	if err := server.Shutdown(ctx); err != nil {
-		log.Fatal("Server Shutdown failed....")
+	// start the client connectivity service immediately
+	cc, _ := services[client.ServiceName]
+	server.StartJob(cc)
+
+	select {
+	case <-done:
+		log.Println("Server Stopped...")
+		server.Shutdown()
+	case <-serverExit:
+		os.Exit(0)
 	}
 
-	<-clientConnectivityExited
-	<-peerServiceExited
-	log.Println("Server Shutdown properly")
+}
+
+func resolveServices(s *server.Server) map[string]server.Job {
+	rpc := s.InitializeDHT()
+	storage := s.MountStorage(fs.NewManager())
+	dm := s.SetDiscoveryManager(discovery.MdnsStrategy(configureMDNS(s)))
+	cc := s.StartClientConnectivityService(*cport)
+
+	services := map[string]server.Job{
+		rpc.Name():     rpc,
+		storage.Name(): storage,
+		dm.Name():      dm,
+		cc.Name():      cc,
+	}
+
+	return services
 
 }
 
@@ -107,7 +89,7 @@ func configureMDNS(s *server.Server) discovery.Option {
 		text := []string{
 			"Port:" + strconv.Itoa(s.Port),
 			"Address:" + s.Addr,
-			"NodeID:" + fmt.Sprintf("%x", s.GetOwnID()),
+			"NodeID:" + s.GetOwnID(),
 		}
 		m.SetText(text)
 	}
@@ -122,13 +104,13 @@ func splitFromTopLevelDomain(instance string) (string, error) {
 	return split[0], nil
 }
 
-func serveHTTP(server *server.Server, service server.Rest) chan bool {
-	done := make(chan bool)
-	go func() {
-		if err := server.HTTPListenAndServe(service); err != nil {
-			done <- true
-		}
-	}()
+// func serveHTTP(server *server.Server, service server.Rest) chan bool {
+// 	done := make(chan bool)
+// 	go func() {
+// 		if err := server.HTTPListenAndServe(service); err != nil {
+// 			done <- true
+// 		}
+// 	}()
 
-	return done
-}
+// 	return done
+// }

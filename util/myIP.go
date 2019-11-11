@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"fmt"
 	"io"
+	"math/rand"
 	"net"
 	"os"
 	"path/filepath"
@@ -130,4 +131,8 @@ func ReadTarball(reader io.Reader, target string) error {
 			f.Close()
 		}
 	}
+}
+
+func RandomID(p []byte) {
+	rand.Read(p)
 }
