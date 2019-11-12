@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"sync"
+	"time"
 )
 
 const NumServices = 5
@@ -60,7 +61,7 @@ type Server struct {
 	Port int
 	Addr string
 
-	services     map[string]serviceEntry
+	services     map[string]*serviceEntry
 	lock         sync.Mutex
 	startService chan Service
 	stopService  chan Service
@@ -75,7 +76,7 @@ func New(port int, host string) *Server {
 			Port:         port,
 			Addr:         host,
 			lock:         sync.Mutex{},
-			services:     make(map[string]serviceEntry),
+			services:     make(map[string]*serviceEntry),
 			startService: make(chan Service, NumServices),
 			stopService:  make(chan Service, 1),
 			stopAll:      make(chan bool),
@@ -87,15 +88,15 @@ func New(port int, host string) *Server {
 	return serverInstance
 }
 
-func (s *Server) StartService(service Service) {
-	log.Printf("Starting Service %s (%s)\n", service.ID(), service.Name())
-	s.startService <- service
-}
+// func (s *Server) StartService(service Service) {
+// 	log.Printf("Starting Service %s (%s)\n", service.ID(), service.Name())
+// 	s.startService <- service
+// }
 
 func (s *Server) RegisterService(service Service) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	s.services[service.Name()] = serviceEntry{
+	s.services[service.Name()] = &serviceEntry{
 		started: false,
 		service: service,
 	}
@@ -128,30 +129,48 @@ func (s *Server) Shutdown() {
 }
 
 func (s *Server) mainLoop() {
-	services := make([]Service, 0)
+	pendingServices := make([]Service, 0)
+	var nextRun <-chan time.Time
 	for {
+
+		var next Service
+		if len(pendingServices) > 0 {
+			next = pendingServices[0]
+			nextRun = time.After(time.Millisecond * 200)
+		}
+
 		select {
 		case service := <-queue:
-			s.startService <- service
-		case service := <-s.startService:
-			services = append(services, service)
-			go func(s Service) {
+			pendingServices = append(pendingServices, service)
+
+		case <-nextRun:
+			pendingServices = pendingServices[1:]
+			entry, _ := s.services[next.Name()]
+			if entry.started {
+				break
+			}
+			entry.started = true
+			go func(service Service) {
 				log.Printf("Running %s (%s)\n", service.ID(), service.Name())
-				s.Run()
-			}(service)
+				service.Run()
+			}(entry.service)
+
 		case service := <-s.stopService:
-			for _, j := range services {
-				if j.ID() == service.ID() {
-					j.Shutdown()
-					log.Printf("Stopped Service %s (%s)\n", j.ID(), j.Name())
+			for _, j := range s.services {
+				if j.started && j.service.ID() == service.ID() {
+					j.service.Shutdown()
+					log.Printf("Stopped Service %s (%s)\n", j.service.ID(), j.service.Name())
 				}
 			}
 
 		case <-s.stopAll:
-			log.Printf("Stopping All Services (%d)\n", len(services))
-			for _, j := range services {
-				j.Shutdown()
-				s.exitService <- fmt.Sprintf("Stopped Service %s (%s)\n", j.ID(), j.Name())
+			log.Printf("Stopping All pendingServices\n")
+			for _, j := range s.services {
+				log.Printf("Stopping %s %v\n", j.service.Name(), j.started)
+				if j.started {
+					j.service.Shutdown()
+					s.exitService <- fmt.Sprintf("Stopped Service %s (%s)\n", j.service.ID(), j.service.Name())
+				}
 			}
 
 			close(s.exitService)

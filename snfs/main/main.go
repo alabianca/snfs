@@ -58,11 +58,11 @@ func main() {
 
 	// start the storage service immediately
 	ss, _ := services[fs.ServiceName]
-	srv.StartService(ss)
+	server.QueueService(ss)
 
 	// start the client connectivity service immediately
 	cc, _ := services[client.ServiceName]
-	srv.StartService(cc)
+	server.QueueService(cc)
 
 	select {
 	case <-done:
