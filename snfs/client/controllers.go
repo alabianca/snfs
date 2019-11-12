@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/alabianca/snfs/snfs/server"
+
 	"github.com/grandcat/zeroconf"
 
 	"github.com/alabianca/snfs/util"
@@ -43,10 +45,13 @@ func startMDNSController(d *discovery.Manager) http.HandlerFunc {
 			return
 		}
 
-		if err := d.Register(sReq.Instance); err != nil {
-			util.Respond(res, util.Message(http.StatusInternalServerError, "MDNS Could Not Register"))
-			return
-		}
+		d.SetInstance(sReq.Instance)
+		server.QueueService(d)
+
+		// if err := d.Register(sReq.Instance); err != nil {
+		// 	util.Respond(res, util.Message(http.StatusInternalServerError, "MDNS Could Not Register"))
+		// 	return
+		// }
 
 		util.Respond(res, util.Message(http.StatusOK, "MDNS Is Registered"))
 	}

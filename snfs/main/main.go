@@ -10,6 +10,8 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/alabianca/snfs/snfs/kadnet"
+
 	"github.com/alabianca/snfs/snfs/client"
 
 	"github.com/alabianca/snfs/util"
@@ -40,39 +42,46 @@ func main() {
 
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
-	server := server.New(5050, myIP.String())
+	srv := server.New(5050, myIP.String())
 
-	services := resolveServices(server)
+	// initialize global queue channel
+	server.InitQueue(server.NumServices)
+
+	services := resolveServices(srv)
+	for _, service := range services {
+		srv.RegisterService(service)
+	}
 
 	go func() {
-		serverExit <- server.Run()
+		serverExit <- srv.Run()
 	}()
 
 	// start the storage service immediately
 	ss, _ := services[fs.ServiceName]
-	server.StartJob(ss)
+	srv.StartService(ss)
 
 	// start the client connectivity service immediately
 	cc, _ := services[client.ServiceName]
-	server.StartJob(cc)
+	srv.StartService(cc)
 
 	select {
 	case <-done:
 		log.Println("Server Stopped...")
-		server.Shutdown()
+		srv.Shutdown()
 	case <-serverExit:
 		os.Exit(0)
 	}
 
 }
 
-func resolveServices(s *server.Server) map[string]server.Job {
-	rpc := s.SetRPCManager()
-	storage := s.SetStorageManager(fs.NewManager())
-	dm := s.SetDiscoveryManager(discovery.MdnsStrategy(configureMDNS(s)))
-	cc := s.SetClientConnectivityService(*cport)
+func resolveServices(s *server.Server) map[string]server.Service {
+	rpc := kadnet.NewRPCManager(s.Addr, s.Port)
+	storage := fs.NewManager()
+	dm := discovery.NewManager(discovery.MdnsStrategy(configureMDNS(s.Port, s.Addr, rpc.ID())))
+	cc := client.NewConnectivityService(dm, storage, rpc)
+	cc.SetAddr("", *cport)
 
-	services := map[string]server.Job{
+	services := map[string]server.Service{
 		rpc.Name():     rpc,
 		storage.Name(): storage,
 		dm.Name():      dm,
@@ -83,13 +92,13 @@ func resolveServices(s *server.Server) map[string]server.Job {
 
 }
 
-func configureMDNS(s *server.Server) discovery.Option {
+func configureMDNS(port int, address, id string) discovery.Option {
 	return func(m *discovery.MdnsService) {
 		m.SetPort(*dport)
 		text := []string{
-			"Port:" + strconv.Itoa(s.Port),
-			"Address:" + s.Addr,
-			"NodeID:" + s.GetOwnID(),
+			"Port:" + strconv.Itoa(port),
+			"Address:" + address,
+			"NodeID:" + id,
 		}
 		m.SetText(text)
 	}

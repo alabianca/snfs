@@ -3,85 +3,89 @@ package server
 import (
 	"fmt"
 	"log"
-
-	"github.com/alabianca/snfs/snfs/kadnet"
-
-	"github.com/alabianca/snfs/snfs/client"
-	"github.com/alabianca/snfs/snfs/fs"
-
-	"github.com/alabianca/snfs/snfs/discovery"
+	"sync"
 )
 
-const numJobs = 5
+const NumServices = 5
 
-type Job interface {
+var queue chan Service
+var once sync.Once
+
+func InitQueue(maxSize int) {
+	once.Do(func() {
+		queue = make(chan Service, maxSize)
+	})
+}
+
+func QueueService(s Service) {
+	queue <- s
+}
+
+// Errors
+const ErrServerNotSet = "Server Not Set"
+
+type serviceEntry struct {
+	started bool
+	service Service
+}
+
+type Service interface {
 	Run() error
 	Shutdown() error
 	ID() string
 	Name() string
 }
 
-type startJob struct {
-	job Job
-	err error
-}
-
 type Server struct {
-	Port               int
-	Addr               string
-	DiscoveryManager   *discovery.Manager
-	ClientConnectivity *client.ConnectivityService
-	Storage            *fs.Manager
-	RPCManager         kadnet.RPCManager
-	// channels
-	startJob    chan Job
-	stopJob     chan Job
-	stopAll     chan bool
-	exit        chan error
-	exitService chan string
+	Port int
+	Addr string
+
+	services     map[string]serviceEntry
+	lock         sync.Mutex
+	startService chan Service
+	stopService  chan Service
+	stopAll      chan bool
+	exit         chan error
+	exitService  chan string
 }
 
 func New(port int, host string) *Server {
-	return &Server{
-		Port:        port,
-		Addr:        host,
-		startJob:    make(chan Job, numJobs),
-		stopJob:     make(chan Job, 1),
-		stopAll:     make(chan bool),
-		exit:        make(chan error),
-		exitService: make(chan string),
+	serverInstace := &Server{
+		Port:         port,
+		Addr:         host,
+		lock:         sync.Mutex{},
+		services:     make(map[string]serviceEntry),
+		startService: make(chan Service, NumServices),
+		stopService:  make(chan Service, 1),
+		stopAll:      make(chan bool),
+		exit:         make(chan error),
+		exitService:  make(chan string),
+	}
+
+	return serverInstace
+}
+
+func (s *Server) StartService(service Service) {
+	log.Printf("Starting Service %s (%s)\n", service.ID(), service.Name())
+	s.startService <- service
+}
+
+func (s *Server) RegisterService(service Service) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	s.services[service.Name()] = serviceEntry{
+		started: false,
+		service: service,
 	}
 }
 
-func (s *Server) StartJob(job Job) {
-	log.Printf("Starting Job %s (%s)\n", job.ID(), job.Name())
-	s.startJob <- job
-}
+func (s *Server) ResolveService(token string) Service {
+	entry, ok := s.services[token]
+	if !ok {
+		return nil
+	}
 
-func (s *Server) SetRPCManager() Job {
-	log.Printf("Initializing DHT at %s -> %d\n", s.Addr, s.Port)
-	s.RPCManager = kadnet.NewRPCManager(s.Addr, s.Port)
-	return s.RPCManager
-}
-
-func (s *Server) SetStorageManager(storage *fs.Manager) Job {
-	s.Storage = storage
-	return s.Storage
-}
-
-func (s *Server) SetDiscoveryManager(mdns *discovery.MdnsService) Job {
-	s.DiscoveryManager = discovery.NewManager(mdns)
-	return s.DiscoveryManager
-}
-
-func (s *Server) SetClientConnectivityService(port int) Job {
-	s.ClientConnectivity = client.NewConnectivityService(s.DiscoveryManager, s.Storage, s.RPCManager)
-	s.ClientConnectivity.SetAddr("", port)
-	return s.ClientConnectivity
-}
-
-func (s *Server) GetOwnID() string {
-	return s.RPCManager.ID()
+	return entry.service
 }
 
 func (s *Server) Run() error {
@@ -102,26 +106,28 @@ func (s *Server) Shutdown() {
 }
 
 func (s *Server) mainLoop() {
-	jobs := make([]Job, 0)
+	services := make([]Service, 0)
 	for {
 		select {
-		case job := <-s.startJob:
-			jobs = append(jobs, job)
-			go func() {
-				log.Printf("Running %s (%s)\n", job.ID(), job.Name())
-				job.Run()
-			}()
-		case job := <-s.stopJob:
-			for _, j := range jobs {
-				if j.ID() == job.ID() {
+		case service := <-queue:
+			s.startService <- service
+		case service := <-s.startService:
+			services = append(services, service)
+			go func(s Service) {
+				log.Printf("Running %s (%s)\n", service.ID(), service.Name())
+				s.Run()
+			}(service)
+		case service := <-s.stopService:
+			for _, j := range services {
+				if j.ID() == service.ID() {
 					j.Shutdown()
 					log.Printf("Stopped Service %s (%s)\n", j.ID(), j.Name())
 				}
 			}
 
 		case <-s.stopAll:
-			log.Printf("Stopping All Services (%d)\n", len(jobs))
-			for _, j := range jobs {
+			log.Printf("Stopping All Services (%d)\n", len(services))
+			for _, j := range services {
 				j.Shutdown()
 				s.exitService <- fmt.Sprintf("Stopped Service %s (%s)\n", j.ID(), j.Name())
 			}
