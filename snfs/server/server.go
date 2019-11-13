@@ -201,6 +201,7 @@ func (s *Server) startService(req *ServiceRequest) {
 	entry.started = true
 	go func() {
 		entry.service.Run()
+		log.Printf("%s mainloop exited\n", entry.service.Name())
 	}()
 
 	req.Res <- ResCodeServiceStarted
@@ -208,5 +209,9 @@ func (s *Server) startService(req *ServiceRequest) {
 }
 
 func (s *Server) stopService(req *ServiceRequest) {
+	entry, _ := s.services[req.Service.Name()]
+	entry.started = false
 
+	entry.service.Shutdown()
+	req.Res <- ResCodeServiceStopped
 }

@@ -68,7 +68,20 @@ func startMDNSController(d *discovery.Manager) http.HandlerFunc {
 
 func stopMDNSController(d *discovery.Manager) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
-		d.Shutdown()
+		mdns := make(chan server.ResponseCode, 1)
+		rpc := make(chan server.ResponseCode, 1)
+		if err := queueServiceRequest(discovery.ServiceName, server.OPStopService, mdns); err != nil {
+			util.Respond(res, util.Message(http.StatusNotFound, "Could Not Resolve Service "+discovery.ServiceName))
+			return
+		}
+		if err := queueServiceRequest(kadnet.ServiceName, server.OPStopService, rpc); err != nil {
+			util.Respond(res, util.Message(http.StatusNotFound, "Could Not Resolve Service "+discovery.ServiceName))
+			return
+		}
+
+		<-mdns
+		<-rpc
+
 		util.Respond(res, util.Message(http.StatusOK, "MDNS Stopped"))
 	}
 }
