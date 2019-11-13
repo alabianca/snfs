@@ -27,8 +27,9 @@ type ResponseCode int
 const OPStartService = OP(1)
 const OPStopService = OP(2)
 
-const ResCodeServiceStarted = ResponseCode(1)
-const ResCodeServiceStopped = ResponseCode(2)
+const ResCodeServiceStarted = ResponseCode(200)
+const ExitCodeSuccess = ResponseCode(0)
+const ExitCodeError = ResponseCode(1)
 
 type ServiceRequest struct {
 	Op      OP
@@ -212,6 +213,8 @@ func (s *Server) stopService(req *ServiceRequest) {
 	entry, _ := s.services[req.Service.Name()]
 	entry.started = false
 
-	entry.service.Shutdown()
-	req.Res <- ResCodeServiceStopped
+	if err := entry.service.Shutdown(); err != nil {
+		req.Res <- ExitCodeError
+	}
+	req.Res <- ExitCodeSuccess
 }
