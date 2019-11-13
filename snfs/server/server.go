@@ -10,20 +10,40 @@ import (
 
 const NumServices = 5
 
-var queue chan Service
+const DiscoveryManager = "DiscoveryManager"
+const ClientConnectivityService = "ConnectivityService"
+const RPCManager = "RPCManager"
+const StorageManager = "StorageManager"
+
+var queue chan ServiceRequest
 var onceQueue sync.Once
 var onceInstance sync.Once
 var serverInstance *Server
 var mtx = sync.Mutex{}
 
+type OP int
+type ResponseCode int
+
+const OPStartService = OP(1)
+const OPStopService = OP(2)
+
+const ResCodeServiceStarted = ResponseCode(1)
+const ResCodeServiceStopped = ResponseCode(2)
+
+type ServiceRequest struct {
+	Op      OP
+	Service Service
+	Res     chan ResponseCode
+}
+
 func InitQueue(maxSize int) {
 	onceQueue.Do(func() {
-		queue = make(chan Service, maxSize)
+		queue = make(chan ServiceRequest, maxSize)
 	})
 }
 
-func QueueService(s Service) {
-	queue <- s
+func QueueServiceRequest(req ServiceRequest) {
+	queue <- req
 }
 
 func ResolveService(token string) (Service, error) {
@@ -61,37 +81,32 @@ type Server struct {
 	Port int
 	Addr string
 
-	services     map[string]*serviceEntry
-	lock         sync.Mutex
-	startService chan Service
-	stopService  chan Service
-	stopAll      chan bool
-	exit         chan error
-	exitService  chan string
+	services map[string]*serviceEntry
+	lock     sync.Mutex
+	// startService chan Service
+	// stopService  chan Service
+	stopAll     chan bool
+	exit        chan error
+	exitService chan string
 }
 
 func New(port int, host string) *Server {
 	onceInstance.Do(func() {
 		serverInstance = &Server{
-			Port:         port,
-			Addr:         host,
-			lock:         sync.Mutex{},
-			services:     make(map[string]*serviceEntry),
-			startService: make(chan Service, NumServices),
-			stopService:  make(chan Service, 1),
-			stopAll:      make(chan bool),
-			exit:         make(chan error),
-			exitService:  make(chan string),
+			Port:     port,
+			Addr:     host,
+			lock:     sync.Mutex{},
+			services: make(map[string]*serviceEntry),
+			// startService: make(chan Service, NumServices),
+			// stopService:  make(chan Service, NumServices),
+			stopAll:     make(chan bool),
+			exit:        make(chan error),
+			exitService: make(chan string),
 		}
 	})
 
 	return serverInstance
 }
-
-// func (s *Server) StartService(service Service) {
-// 	log.Printf("Starting Service %s (%s)\n", service.ID(), service.Name())
-// 	s.startService <- service
-// }
 
 func (s *Server) RegisterService(service Service) {
 	s.lock.Lock()
@@ -129,39 +144,26 @@ func (s *Server) Shutdown() {
 }
 
 func (s *Server) mainLoop() {
-	pendingServices := make([]Service, 0)
+	pendingRequests := make([]ServiceRequest, 0)
 	var nextRun <-chan time.Time
 	for {
 
-		var next Service
-		if len(pendingServices) > 0 {
-			next = pendingServices[0]
+		var next ServiceRequest
+		if len(pendingRequests) > 0 {
+			next = pendingRequests[0]
 			nextRun = time.After(time.Millisecond * 200)
 		}
 
 		select {
-		case service := <-queue:
-			pendingServices = append(pendingServices, service)
+		case req := <-queue:
+			pendingRequests = append(pendingRequests, req)
 
 		case <-nextRun:
-			pendingServices = pendingServices[1:]
-			entry, _ := s.services[next.Name()]
-			if entry.started {
-				break
-			}
-			entry.started = true
-			go func(service Service) {
-				log.Printf("Running %s (%s)\n", service.ID(), service.Name())
-				service.Run()
-			}(entry.service)
-
-		case service := <-s.stopService:
-			for _, j := range s.services {
-				if j.started && j.service.ID() == service.ID() {
-					j.service.Shutdown()
-					log.Printf("Stopped Service %s (%s)\n", j.service.ID(), j.service.Name())
-				}
-			}
+			pendingRequests = pendingRequests[1:]
+			go func(req ServiceRequest) {
+				log.Printf("Handling Request %d for %s\n", req.Op, req.Service.Name())
+				s.handleRequest(&req)
+			}(next)
 
 		case <-s.stopAll:
 			log.Printf("Stopping All pendingServices\n")
@@ -180,4 +182,31 @@ func (s *Server) mainLoop() {
 			s.exit <- nil
 		}
 	}
+}
+
+func (s *Server) handleRequest(req *ServiceRequest) {
+	switch req.Op {
+	case OPStartService:
+		s.startService(req)
+	case OPStopService:
+		s.stopService(req)
+	}
+}
+
+func (s *Server) startService(req *ServiceRequest) {
+	entry, _ := s.services[req.Service.Name()]
+	if entry.started {
+		return
+	}
+	entry.started = true
+	go func() {
+		entry.service.Run()
+	}()
+
+	req.Res <- ResCodeServiceStarted
+
+}
+
+func (s *Server) stopService(req *ServiceRequest) {
+
 }

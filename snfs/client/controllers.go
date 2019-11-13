@@ -46,12 +46,21 @@ func startMDNSController(d *discovery.Manager) http.HandlerFunc {
 		}
 
 		d.SetInstance(sReq.Instance)
-		server.QueueService(d)
 
-		// if err := d.Register(sReq.Instance); err != nil {
-		// 	util.Respond(res, util.Message(http.StatusInternalServerError, "MDNS Could Not Register"))
-		// 	return
-		// }
+		mdns := make(chan server.ResponseCode, 1)
+		rpc := make(chan server.ResponseCode, 1)
+
+		if err := queueServiceRequest(discovery.ServiceName, server.OPStartService, mdns); err != nil {
+			util.Respond(res, util.Message(http.StatusNotFound, "Could Not Resolve Service "+discovery.ServiceName))
+			return
+		}
+		if err := queueServiceRequest(kadnet.ServiceName, server.OPStartService, rpc); err != nil {
+			util.Respond(res, util.Message(http.StatusNotFound, "Could Not Resolve Service "+discovery.ServiceName))
+			return
+		}
+
+		<-mdns
+		<-rpc
 
 		util.Respond(res, util.Message(http.StatusOK, "MDNS Is Registered"))
 	}
@@ -242,4 +251,21 @@ func bootstrapController(rpc kadnet.RPCManager) http.HandlerFunc {
 		rpc.Bootstrap(br.Port, br.Address, br.ID)
 
 	}
+}
+
+func queueServiceRequest(serviceName string, op server.OP, res chan server.ResponseCode) error {
+	service, err := server.ResolveService(serviceName)
+	if err != nil {
+		return err
+	}
+
+	req := server.ServiceRequest{
+		Op:      op,
+		Service: service,
+		Res:     res,
+	}
+
+	server.QueueServiceRequest(req)
+
+	return nil
 }

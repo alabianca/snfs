@@ -58,11 +58,11 @@ func main() {
 
 	// start the storage service immediately
 	ss, _ := services[fs.ServiceName]
-	server.QueueService(ss)
+	startService(ss)
 
 	// start the client connectivity service immediately
 	cc, _ := services[client.ServiceName]
-	server.QueueService(cc)
+	startService(cc)
 
 	select {
 	case <-done:
@@ -72,6 +72,18 @@ func main() {
 		os.Exit(0)
 	}
 
+}
+
+func startService(s server.Service) {
+	req := server.ServiceRequest{
+		Op:      server.OPStartService,
+		Res:     make(chan server.ResponseCode, 1),
+		Service: s,
+	}
+
+	server.QueueServiceRequest(req)
+	<-req.Res
+	log.Printf("Started Service %s\n", s.Name())
 }
 
 func resolveServices(s *server.Server) map[string]server.Service {
