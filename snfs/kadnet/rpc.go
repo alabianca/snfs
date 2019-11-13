@@ -41,8 +41,8 @@ type rpcManager struct {
 	address string
 	conn    *net.UDPConn
 	// channels
-	stopRead        chan bool
-	stopWrite       chan bool
+	stopRead        chan chan error
+	stopWrite       chan chan error
 	doNodeLookup    chan *gokad.Contact
 	doPing          chan *gokad.Contact
 	receivedMessage chan Message
@@ -53,8 +53,8 @@ func NewRPCManager(address string, port int) RPCManager {
 		dht:             NewDHT(),
 		port:            port,
 		address:         address,
-		stopRead:        make(chan bool),
-		stopWrite:       make(chan bool),
+		stopRead:        make(chan chan error),
+		stopWrite:       make(chan chan error),
 		receivedMessage: make(chan Message),
 		doNodeLookup:    make(chan *gokad.Contact),
 		doPing:          make(chan *gokad.Contact),
@@ -124,25 +124,39 @@ func (rpc *rpcManager) Name() string {
 }
 
 func (rpc *rpcManager) Run() error {
-	go rpc.writeLoop()
-	go rpc.readLoop()
+	exitRead := make(chan error)
+	exitWrite := make(chan error)
+	go func() {
+		exitWrite <- rpc.writeLoop()
+	}()
+
+	go func() {
+		exitRead <- rpc.readLoop()
+	}()
+
+	<-exitRead
+	<-exitWrite
 
 	return nil
 }
 
 func (rpc *rpcManager) Shutdown() error {
+	stopRead := make(chan error)
+	stopWrite := make(chan error)
 	if rpc.conn != nil {
-		rpc.stopRead <- true
-		rpc.stopWrite <- true
+		rpc.stopRead <- stopRead
+		<-stopRead
+		rpc.stopWrite <- stopWrite
+		<-stopWrite
 		return rpc.conn.Close()
 	}
 
 	return nil
 }
 
-func (rpc *rpcManager) readLoop() {
+func (rpc *rpcManager) readLoop() error {
 	if err := rpc.Listen(); err != nil {
-		return
+		return nil
 	}
 	receivedMsgs := make([]Message, 0)
 
@@ -170,8 +184,9 @@ func (rpc *rpcManager) readLoop() {
 		}
 
 		select {
-		case <-rpc.stopRead:
-			return
+		case stop := <-rpc.stopRead:
+			close(stop)
+			return nil
 
 		case result := <-readDone:
 			readDone = nil
@@ -198,11 +213,12 @@ func (rpc *rpcManager) readLoop() {
 	}
 }
 
-func (rpc *rpcManager) writeLoop() {
+func (rpc *rpcManager) writeLoop() error {
 	for {
 		select {
-		case <-rpc.stopWrite:
-			return
+		case stop := <-rpc.stopWrite:
+			close(stop)
+			return nil
 		case c := <-rpc.doNodeLookup:
 			log.Printf("Do Node Lookup %s\n", c.ID)
 		case c := <-rpc.doPing:

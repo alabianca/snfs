@@ -171,7 +171,7 @@ func (s *Server) mainLoop() {
 				log.Printf("Stopping %s %v\n", j.service.Name(), j.started)
 				if j.started {
 					j.service.Shutdown()
-					s.exitService <- fmt.Sprintf("Stopped Service %s (%s)\n", j.service.ID(), j.service.Name())
+					s.exitService <- fmt.Sprintf("Stopped Service (%s)\n", j.service.Name())
 				}
 			}
 
