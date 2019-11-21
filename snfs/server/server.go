@@ -82,10 +82,8 @@ type Server struct {
 	Port int
 	Addr string
 
-	services map[string]*serviceEntry
-	lock     sync.Mutex
-	// startService chan Service
-	// stopService  chan Service
+	services    map[string]*serviceEntry
+	lock        sync.Mutex
 	stopAll     chan bool
 	exit        chan error
 	exitService chan string
@@ -94,12 +92,10 @@ type Server struct {
 func New(port int, host string) *Server {
 	onceInstance.Do(func() {
 		serverInstance = &Server{
-			Port:     port,
-			Addr:     host,
-			lock:     sync.Mutex{},
-			services: make(map[string]*serviceEntry),
-			// startService: make(chan Service, NumServices),
-			// stopService:  make(chan Service, NumServices),
+			Port:        port,
+			Addr:        host,
+			lock:        sync.Mutex{},
+			services:    make(map[string]*serviceEntry),
 			stopAll:     make(chan bool),
 			exit:        make(chan error),
 			exitService: make(chan string),

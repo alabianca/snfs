@@ -2,6 +2,7 @@ package util
 
 import (
 	"archive/tar"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"math/rand"
@@ -135,4 +136,17 @@ func ReadTarball(reader io.Reader, target string) error {
 
 func RandomID(p []byte) {
 	rand.Read(p)
+}
+
+func BytesFromHex(in string) ([]byte, error) {
+	src := []byte(in)
+	out := make([]byte, hex.DecodedLen(len(src)))
+
+	n, err := hex.Decode(out, src)
+	if err != nil {
+		return nil, err
+	}
+
+	return out[:n], nil
+
 }

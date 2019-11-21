@@ -43,8 +43,9 @@ type rpcManager struct {
 	// channels
 	stopRead        chan chan error
 	stopWrite       chan chan error
-	doNodeLookup    chan *gokad.Contact
+	doNodeLookup    chan *gokad.ID
 	doPing          chan *gokad.Contact
+	inboundMessages map[MessageType]chan Message
 	receivedMessage chan Message
 }
 
@@ -53,10 +54,11 @@ func NewRPCManager(address string, port int) RPCManager {
 		dht:             NewDHT(),
 		port:            port,
 		address:         address,
+		inboundMessages: makeMessageChannels(1),
 		stopRead:        make(chan chan error),
 		stopWrite:       make(chan chan error),
 		receivedMessage: make(chan Message),
-		doNodeLookup:    make(chan *gokad.Contact),
+		doNodeLookup:    make(chan *gokad.ID),
 		doPing:          make(chan *gokad.Contact),
 	}
 }
@@ -90,8 +92,8 @@ func (rpc *rpcManager) Bootstrap(port int, ip, idHex string) {
 		return
 	}
 
-	// start node lookup
-	rpc.doNodeLookup <- c
+	// start node lookup for own id
+	rpc.doNodeLookup <- rpc.dht.Table.ID
 
 }
 
@@ -99,21 +101,7 @@ func (rpc *rpcManager) NodeLookup(idHex string) {}
 
 // Manager starts here
 
-// Listen listens for udp packets
-// if no error encountered, rpc.conn is set
-func (rpc *rpcManager) Listen() error {
-	conn, err := net.ListenUDP("udp", &net.UDPAddr{
-		Port: rpc.port,
-		IP:   net.ParseIP(rpc.address),
-	})
-
-	if err != nil {
-		return err
-	}
-
-	rpc.conn = conn
-	return nil
-}
+// Service interface ID, Name, Run, Shutdown
 
 func (rpc *rpcManager) ID() string {
 	return rpc.dht.Table.ID.String()
@@ -154,6 +142,23 @@ func (rpc *rpcManager) Shutdown() error {
 	return nil
 }
 
+// Listen listens for udp packets
+// if no error encountered, rpc.conn is set
+func (rpc *rpcManager) Listen() error {
+	conn, err := net.ListenUDP("udp", &net.UDPAddr{
+		Port: rpc.port,
+		IP:   net.ParseIP(rpc.address),
+	})
+
+	if err != nil {
+		return err
+	}
+
+	rpc.conn = conn
+	rpc.dht.setConn(rpc.conn)
+	return nil
+}
+
 func (rpc *rpcManager) readLoop() error {
 	if err := rpc.Listen(); err != nil {
 		return nil
@@ -176,11 +181,12 @@ func (rpc *rpcManager) readLoop() error {
 			startRead = time.After(readDelay)
 		}
 
+		// fanout
 		var updates chan Message
 		var nextMessage Message
 		if len(receivedMsgs) > 0 {
 			nextMessage = receivedMsgs[0]
-			updates = rpc.receivedMessage
+			updates = rpc.getMessageChannel(nextMessage.MultiplexKey)
 		}
 
 		select {
@@ -214,17 +220,25 @@ func (rpc *rpcManager) readLoop() error {
 }
 
 func (rpc *rpcManager) writeLoop() error {
+	onNodeLookupReq := rpc.getMessageChannel(NodeLookupReq)
+	onNodeLookupRes := rpc.getMessageChannel(NodeLookupRes)
 	for {
 		select {
 		case stop := <-rpc.stopWrite:
 			close(stop)
 			return nil
-		case c := <-rpc.doNodeLookup:
-			log.Printf("Do Node Lookup %s\n", c.ID)
+		case id := <-rpc.doNodeLookup:
+			log.Printf("Do Node Lookup for %s\n", id)
 		case c := <-rpc.doPing:
 			log.Printf("Do Ping %s\n", c.ID)
-		case msg := <-rpc.receivedMessage:
-			log.Printf("Received Message %d\n", msg.MultiplexKey)
+
+		// Channels from readloop
+		case msg := <-onNodeLookupReq:
+			log.Printf("Received Node Lookup Req %d\n", msg.MultiplexKey)
+			var req NodeLookupRequest
+			toKademliaMessage(msg, &req)
+		case msg := <-onNodeLookupRes:
+			log.Printf("Received Node Lookup Response %d\n", msg.MultiplexKey)
 		}
 	}
 }
@@ -240,4 +254,15 @@ func (rpc *rpcManager) readNextMessage() (Message, error) {
 	copy(cpy, msg[:rlen])
 
 	return process(cpy)
+}
+
+func (rpc *rpcManager) getMessageChannel(key MessageType) chan Message {
+	c, _ := rpc.inboundMessages[key]
+
+	return c
+
+}
+
+func (rpc *rpcManager) startNodeLookup(id *gokad.ID) {
+
 }
