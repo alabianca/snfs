@@ -27,17 +27,25 @@ const (
 	StoreRes      = MessageType(27)
 )
 
-func makeMessageChannels(maxBuf int) map[MessageType]chan Message {
-	return map[MessageType]chan Message{
-		NodeLookupReq: make(chan Message, maxBuf),
-		NodeLookupRes: make(chan Message, maxBuf),
-		PingReq:       make(chan Message, maxBuf),
-		PingRes:       make(chan Message, maxBuf),
-		FindValueReq:  make(chan Message, maxBuf),
-		FindValueRes:  make(chan Message, maxBuf),
-		StoreReq:      make(chan Message, maxBuf),
-		StoreRes:      make(chan Message, maxBuf),
+func makeMessageChannels(maxBuf int, messageTypes ...MessageType) map[MessageType]chan Message {
+	m := make(map[MessageType]chan Message)
+
+	for _, t := range messageTypes {
+		m[t] = make(chan Message, maxBuf)
 	}
+
+	return m
+
+	// return map[MessageType]chan Message{
+	// 	NodeLookupReq: make(chan Message, maxBuf),
+	// 	NodeLookupRes: make(chan Message, maxBuf),
+	// 	PingReq:       make(chan Message, maxBuf),
+	// 	PingRes:       make(chan Message, maxBuf),
+	// 	FindValueReq:  make(chan Message, maxBuf),
+	// 	FindValueRes:  make(chan Message, maxBuf),
+	// 	StoreReq:      make(chan Message, maxBuf),
+	// 	StoreRes:      make(chan Message, maxBuf),
+	// }
 }
 
 // Errors
@@ -98,6 +106,13 @@ func toKademliaMessage(msg Message, km KademliaMessage) error {
 	}
 
 	return nil
+}
+
+func isResponse(msgType MessageType) bool {
+	return msgType == NodeLookupRes ||
+		msgType == PingRes ||
+		msgType == FindValueRes ||
+		msgType == StoreRes
 }
 
 // Messages
