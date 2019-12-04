@@ -2,6 +2,7 @@ package kadnet
 
 import (
 	"github.com/alabianca/gokad"
+	"log"
 	"net"
 	"sync"
 	"time"
@@ -73,10 +74,12 @@ func (r *ReceiverThread) Run(exit <-chan bool) {
 			readDone = make(chan readResult, 1)
 			go func() {
 				msg, raddr, err := r.readNextMessage()
+				log.Printf("Received a message %d %s\n", msg.MultiplexKey, err)
 				readDone <- readResult{msg, raddr, err}
 			}()
 
 		case fanout <- nextMessage:
+			log.Printf("Fanout Received Message %d\n", nextMessage.message.MultiplexKey())
 			receivedMsgs = receivedMsgs[1:]
 		}
 

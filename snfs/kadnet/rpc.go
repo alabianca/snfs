@@ -39,8 +39,6 @@ type rpcManager struct {
 	port       int
 	address    string
 	conn       *net.UDPConn
-	pending    map[string]*Call
-	pendingMtx sync.Mutex
 	// wait groups
 	mainLoops sync.WaitGroup
 	// channels
@@ -51,8 +49,6 @@ type rpcManager struct {
 	onRequest    chan CompleteMessage
 	onResponse   chan CompleteMessage
 
-	requests        map[MessageType]chan CompleteMessage
-	responses       map[MessageType]chan CompleteMessage
 	receivedMessage chan Message
 }
 
@@ -62,8 +58,6 @@ func NewRPCManager(address string, port int) RPCManager {
 		port:       port,
 		address:    address,
 		mainLoops:  sync.WaitGroup{},
-		pending:    make(map[string]*Call),
-		pendingMtx: sync.Mutex{},
 
 		stopRead:        make(chan bool),
 		stopWrite:       make(chan bool),
@@ -106,7 +100,7 @@ func (rpc *rpcManager) Bootstrap(port int, ip, idHex string) {
 
 	// start node lookup for own id
 	ownID := rpc.dht.Table.ID
-	nlr := newNodeLookupRequest(ownID.String(), "", ownID.String())
+	nlr := newFindNodeRequest(ownID.String(), "", ownID.String())
 	rpc.onRequest <- CompleteMessage{nlr, nil}
 
 }

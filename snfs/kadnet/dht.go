@@ -31,7 +31,7 @@ func (dht *DHT) Bootstrap(port int, ip, idHex string) (*gokad.Contact, int, erro
 	return dht.Table.Bootstrap(port, net.ParseIP(ip), idHex)
 }
 
-func (dht *DHT) NodeLookup(id *gokad.ID, reply *NodeLookupResponse) error {
+func (dht *DHT) NodeLookup(id *gokad.ID, reply *FindNodeResponse) error {
 	return nil
 }
 

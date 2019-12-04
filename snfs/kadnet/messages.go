@@ -20,14 +20,14 @@ type KademliaMessage interface {
 }
 
 const (
-	NodeLookupReq = MessageType(20)
-	NodeLookupRes = MessageType(21)
-	PingReq       = MessageType(22)
-	PingRes       = MessageType(23)
-	FindValueReq  = MessageType(24)
-	FindValueRes  = MessageType(25)
-	StoreReq      = MessageType(26)
-	StoreRes      = MessageType(27)
+	FindNodeReq  = MessageType(20)
+	FindNodeRes  = MessageType(21)
+	PingReq      = MessageType(22)
+	PingRes      = MessageType(23)
+	FindValueReq = MessageType(24)
+	FindValueRes = MessageType(25)
+	StoreReq     = MessageType(26)
+	StoreRes     = MessageType(27)
 )
 
 func makeMessageChannels(maxBuf int, messageTypes ...MessageType) map[MessageType]chan CompleteMessage {
@@ -90,8 +90,8 @@ func process(raw []byte) (Message, error) {
 func toKademliaMessage(msg Message, km KademliaMessage) {
 
 	switch v := km.(type) {
-	case *NodeLookupRequest:
-		*v = NodeLookupRequest{
+	case *FindNodeRequest:
+		*v = FindNodeRequest{
 			randomID:     fmt.Sprintf("%x", msg.RandomID),
 			echoRandomID: fmt.Sprintf("%x", msg.EchoedRandomID),
 			senderID:     fmt.Sprintf("%x", msg.SenderID),
@@ -104,12 +104,12 @@ func toKademliaMessage(msg Message, km KademliaMessage) {
 func processMessage(msg Message) KademliaMessage {
 	var out KademliaMessage
 	switch msg.MultiplexKey {
-	case NodeLookupReq:
-		var nr NodeLookupRequest
+	case FindNodeReq:
+		var nr FindNodeRequest
 		out = &nr
 		toKademliaMessage(msg, out)
-	case NodeLookupRes:
-		var nr NodeLookupResponse
+	case FindNodeRes:
+		var nr FindNodeResponse
 		out = &nr
 		toKademliaMessage(msg, out)
 
@@ -119,7 +119,7 @@ func processMessage(msg Message) KademliaMessage {
 }
 
 func isResponse(msgType MessageType) bool {
-	return msgType == NodeLookupRes ||
+	return msgType == FindNodeRes ||
 		msgType == PingRes ||
 		msgType == FindValueRes ||
 		msgType == StoreRes
@@ -127,22 +127,22 @@ func isResponse(msgType MessageType) bool {
 
 // Messages
 
-// NODE LOOKUP RESPONSE
+// FIND NODE RESPONSE
 
-type NodeLookupResponse struct {
+type FindNodeResponse struct {
 	senderID     string
 	echoRandomID string
 	payload      []gokad.Contact
 	randomID     string
 }
 
-func (n *NodeLookupResponse) MultiplexKey() MessageType {
-	return NodeLookupRes
+func (n *FindNodeResponse) MultiplexKey() MessageType {
+	return FindNodeRes
 }
 
-func (n *NodeLookupResponse) Serialize() ([]byte, error) {
+func (n *FindNodeResponse) Serialize() ([]byte, error) {
 	mkey := make([]byte, 1)
-	mkey[0] = byte(NodeLookupRes)
+	mkey[0] = byte(FindNodeRes)
 	sid, err := serializeID(n.senderID)
 	if err != nil {
 		return nil, err
@@ -176,11 +176,11 @@ func (n *NodeLookupResponse) Serialize() ([]byte, error) {
 	return out, nil
 }
 
-func (n *NodeLookupResponse) GetRandomID() string {
+func (n *FindNodeResponse) GetRandomID() string {
 	return n.randomID
 }
 
-func (n *NodeLookupResponse) GetSenderID() string {
+func (n *FindNodeResponse) GetSenderID() string {
 	return n.senderID
 }
 
@@ -191,22 +191,22 @@ func serializeID(id string) ([]byte, error) {
 
 
 
-// NODE LOOKUP REQUEST
+// FIND NODE REQUEST
 
-type NodeLookupRequest struct {
+type FindNodeRequest struct {
 	senderID     string
 	echoRandomID string
 	payload      string
 	randomID     string
 }
 
-func newNodeLookupRequest(sID, eID, payload string) *NodeLookupRequest {
+func newFindNodeRequest(sID, eID, payload string) *FindNodeRequest {
 	rID := gokad.GenerateRandomID().String()
 	if eID == "" {
 		eID = rID
 	}
 
-	return &NodeLookupRequest{
+	return &FindNodeRequest{
 		senderID: sID,
 		echoRandomID: eID,
 		payload: payload,
@@ -214,13 +214,13 @@ func newNodeLookupRequest(sID, eID, payload string) *NodeLookupRequest {
 	}
 }
 
-func (n *NodeLookupRequest) MultiplexKey() MessageType {
-	return NodeLookupReq
+func (n *FindNodeRequest) MultiplexKey() MessageType {
+	return FindNodeReq
 }
 
-func (n *NodeLookupRequest) Serialize() ([]byte, error) {
+func (n *FindNodeRequest) Serialize() ([]byte, error) {
 	mkey := make([]byte, 1)
-	mkey[0] = byte(NodeLookupReq)
+	mkey[0] = byte(FindNodeReq)
 
 	sid, err := serializeID(n.senderID)
 	if err != nil {
@@ -249,10 +249,10 @@ func (n *NodeLookupRequest) Serialize() ([]byte, error) {
 
 }
 
-func (n *NodeLookupRequest) GetRandomID() string {
+func (n *FindNodeRequest) GetRandomID() string {
 	return n.randomID
 }
 
-func (n *NodeLookupRequest) GetSenderID() string {
+func (n *FindNodeRequest) GetSenderID() string {
 	return n.senderID
 }

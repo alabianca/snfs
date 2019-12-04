@@ -42,7 +42,7 @@ func (r *ReplyThread) Run(exit chan bool) {
 			r.wg.Done()
 			return
 		case msg := <-r.onRequest:
-			log.Printf("Recieved Message %d\n", msg.message.MultiplexKey)
+			log.Printf("Recieved Message %d\n", msg.message.MultiplexKey())
 			queue = append(queue, msg)
 			handler := r.nodeLookup(&msg)
 			handler()
@@ -52,13 +52,14 @@ func (r *ReplyThread) Run(exit chan bool) {
 
 func (r *ReplyThread) tempStoreMsg(km KademliaMessage) {
 	switch km.MultiplexKey() {
-	case NodeLookupRes:
+	case FindNodeRes:
+		log.Printf("Store Lookup Response %s\n", km.GetSenderID())
 		r.nodeReplyBuffer.Put(km)
 	}
 }
 
 func (r *ReplyThread) nodeLookup(msg *CompleteMessage) func() {
-	nlr := msg.message.(*NodeLookupRequest)
+	nlr := msg.message.(*FindNodeRequest)
 	id,_ := gokad.From(nlr.payload)
 	//buffer := r.nodeReplyBuffer
 
