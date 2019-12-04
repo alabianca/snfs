@@ -3,16 +3,17 @@ package kadnet
 type Call struct {
 	ID       string
 	Request  KademliaMessage
-	Response KademliaMessage
+	Response chan KademliaMessage
 	Done     chan bool
 	Error    error
 }
 
-func newCall(request KademliaMessage) *Call {
+func newCall(message KademliaMessage) *Call {
 	c := &Call{
-		ID:      request.GetRandomID(),
-		Request: request,
-		Done:    make(chan bool),
+		ID:       message.GetRandomID(),
+		Request:  message,
+		Done:     make(chan bool),
+		Response: make(chan KademliaMessage),
 	}
 
 	return c

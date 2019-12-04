@@ -3,6 +3,7 @@ package kadnet
 import (
 	"errors"
 	"fmt"
+	"net"
 
 	"github.com/alabianca/snfs/util"
 
@@ -12,8 +13,10 @@ import (
 type MessageType int
 
 type KademliaMessage interface {
+	MultiplexKey() MessageType
 	Serialize() ([]byte, error)
 	GetRandomID() string
+	GetSenderID() string
 }
 
 const (
@@ -27,29 +30,23 @@ const (
 	StoreRes      = MessageType(27)
 )
 
-func makeMessageChannels(maxBuf int, messageTypes ...MessageType) map[MessageType]chan Message {
-	m := make(map[MessageType]chan Message)
+func makeMessageChannels(maxBuf int, messageTypes ...MessageType) map[MessageType]chan CompleteMessage {
+	m := make(map[MessageType]chan CompleteMessage)
 
 	for _, t := range messageTypes {
-		m[t] = make(chan Message, maxBuf)
+		m[t] = make(chan CompleteMessage, maxBuf)
 	}
 
 	return m
-
-	// return map[MessageType]chan Message{
-	// 	NodeLookupReq: make(chan Message, maxBuf),
-	// 	NodeLookupRes: make(chan Message, maxBuf),
-	// 	PingReq:       make(chan Message, maxBuf),
-	// 	PingRes:       make(chan Message, maxBuf),
-	// 	FindValueReq:  make(chan Message, maxBuf),
-	// 	FindValueRes:  make(chan Message, maxBuf),
-	// 	StoreReq:      make(chan Message, maxBuf),
-	// 	StoreRes:      make(chan Message, maxBuf),
-	// }
 }
 
 // Errors
 const ErrNoMatchMessageSize = "byte length does not match message size"
+
+type CompleteMessage struct {
+	message KademliaMessage
+	sender  *net.UDPAddr
+}
 
 type Message struct {
 	MultiplexKey   MessageType
@@ -90,10 +87,7 @@ func process(raw []byte) (Message, error) {
 	return message, nil
 }
 
-func toKademliaMessage(msg Message, km KademliaMessage) error {
-	if km == nil {
-		return nil
-	}
+func toKademliaMessage(msg Message, km KademliaMessage) {
 
 	switch v := km.(type) {
 	case *NodeLookupRequest:
@@ -105,7 +99,23 @@ func toKademliaMessage(msg Message, km KademliaMessage) error {
 		}
 	}
 
-	return nil
+}
+
+func processMessage(msg Message) KademliaMessage {
+	var out KademliaMessage
+	switch msg.MultiplexKey {
+	case NodeLookupReq:
+		var nr NodeLookupRequest
+		out = &nr
+		toKademliaMessage(msg, out)
+	case NodeLookupRes:
+		var nr NodeLookupResponse
+		out = &nr
+		toKademliaMessage(msg, out)
+
+	}
+
+	return out
 }
 
 func isResponse(msgType MessageType) bool {
@@ -117,11 +127,17 @@ func isResponse(msgType MessageType) bool {
 
 // Messages
 
+// NODE LOOKUP RESPONSE
+
 type NodeLookupResponse struct {
 	senderID     string
 	echoRandomID string
 	payload      []gokad.Contact
 	randomID     string
+}
+
+func (n *NodeLookupResponse) MultiplexKey() MessageType {
+	return NodeLookupRes
 }
 
 func (n *NodeLookupResponse) Serialize() ([]byte, error) {
@@ -164,15 +180,42 @@ func (n *NodeLookupResponse) GetRandomID() string {
 	return n.randomID
 }
 
+func (n *NodeLookupResponse) GetSenderID() string {
+	return n.senderID
+}
+
 func serializeID(id string) ([]byte, error) {
 	return util.BytesFromHex(id)
 }
+
+
+
+
+// NODE LOOKUP REQUEST
 
 type NodeLookupRequest struct {
 	senderID     string
 	echoRandomID string
 	payload      string
 	randomID     string
+}
+
+func newNodeLookupRequest(sID, eID, payload string) *NodeLookupRequest {
+	rID := gokad.GenerateRandomID().String()
+	if eID == "" {
+		eID = rID
+	}
+
+	return &NodeLookupRequest{
+		senderID: sID,
+		echoRandomID: eID,
+		payload: payload,
+		randomID: rID,
+	}
+}
+
+func (n *NodeLookupRequest) MultiplexKey() MessageType {
+	return NodeLookupReq
 }
 
 func (n *NodeLookupRequest) Serialize() ([]byte, error) {
@@ -208,4 +251,8 @@ func (n *NodeLookupRequest) Serialize() ([]byte, error) {
 
 func (n *NodeLookupRequest) GetRandomID() string {
 	return n.randomID
+}
+
+func (n *NodeLookupRequest) GetSenderID() string {
+	return n.senderID
 }

@@ -1,11 +1,9 @@
 package kadnet
 
 import (
+	"github.com/alabianca/gokad"
 	"net"
 	"sync"
-	"time"
-
-	"github.com/alabianca/gokad"
 )
 
 const maxMsgBuffer = 100
@@ -13,6 +11,7 @@ const ServiceName = "RPCManager"
 
 type readResult struct {
 	message Message
+	remote  *net.UDPAddr
 	err     error
 }
 
@@ -29,54 +28,50 @@ type Manager interface {
 	Shutdown() error
 }
 
+type Handler func(c *Conn)
+
 type RPC interface {
-	//NodeLookup()
 	Bootstrap(port int, ip, idHex string)
-	NodeLookup(idHex string)
 }
 
 type rpcManager struct {
-	dht     *DHT
-	port    int
-	address string
-	conn    *net.UDPConn
+	dht        *DHT
+	port       int
+	address    string
+	conn       *net.UDPConn
+	pending    map[string]*Call
+	pendingMtx sync.Mutex
 	// wait groups
 	mainLoops sync.WaitGroup
 	// channels
-	stopRead        chan bool
-	stopWrite       chan bool
-	doNodeLookup    chan *gokad.ID
-	doPing          chan *gokad.Contact
-	requests        map[MessageType]chan Message
-	responses       map[MessageType]chan Message
+	stopRead     chan bool
+	stopWrite    chan bool
+	doNodeLookup chan *gokad.ID
+	doPing       chan *gokad.Contact
+	onRequest    chan CompleteMessage
+	onResponse   chan CompleteMessage
+
+	requests        map[MessageType]chan CompleteMessage
+	responses       map[MessageType]chan CompleteMessage
 	receivedMessage chan Message
 }
 
 func NewRPCManager(address string, port int) RPCManager {
 	return &rpcManager{
-		dht:       NewDHT(),
-		port:      port,
-		address:   address,
-		mainLoops: sync.WaitGroup{},
-		requests: makeMessageChannels(
-			1,
-			NodeLookupReq,
-			PingReq,
-			FindValueReq,
-			StoreReq,
-		),
-		responses: makeMessageChannels(
-			1,
-			NodeLookupRes,
-			PingRes,
-			FindValueRes,
-			StoreRes,
-		),
+		dht:        NewDHT(),
+		port:       port,
+		address:    address,
+		mainLoops:  sync.WaitGroup{},
+		pending:    make(map[string]*Call),
+		pendingMtx: sync.Mutex{},
+
 		stopRead:        make(chan bool),
 		stopWrite:       make(chan bool),
 		receivedMessage: make(chan Message),
 		doNodeLookup:    make(chan *gokad.ID),
 		doPing:          make(chan *gokad.Contact),
+		onRequest:       make(chan CompleteMessage),
+		onResponse:      make(chan CompleteMessage),
 	}
 }
 
@@ -110,11 +105,11 @@ func (rpc *rpcManager) Bootstrap(port int, ip, idHex string) {
 	}
 
 	// start node lookup for own id
-	rpc.doNodeLookup <- rpc.dht.Table.ID
+	ownID := rpc.dht.Table.ID
+	nlr := newNodeLookupRequest(ownID.String(), "", ownID.String())
+	rpc.onRequest <- CompleteMessage{nlr, nil}
 
 }
-
-func (rpc *rpcManager) NodeLookup(idHex string) {}
 
 // Manager starts here
 
@@ -129,18 +124,16 @@ func (rpc *rpcManager) Name() string {
 }
 
 func (rpc *rpcManager) Run() error {
-	go rpc.readLoop()
-	go rpc.writeLoop()
-	go rpc.processResponses()
-	// exitRead := make(chan error)
-	// exitWrite := make(chan error)
-	// go func() {
-	// 	exitWrite <- rpc.writeLoop()
-	// }()
+	if err := rpc.Listen(); err != nil {
+		return err
+	}
 
-	// go func() {
-	// 	exitRead <- rpc.readLoop()
-	// }()
+	receiver := NewReceiverThread(rpc.onResponse, rpc.onRequest, rpc.conn, &rpc.mainLoops)
+	reply := NewReplyThread(rpc.onResponse, rpc.onRequest, rpc.conn, rpc.dht, &rpc.mainLoops)
+
+	go receiver.Run(rpc.stopRead)
+	go reply.Run(rpc.stopWrite)
+
 	rpc.mainLoops.Wait()
 
 	return nil
@@ -149,8 +142,8 @@ func (rpc *rpcManager) Run() error {
 func (rpc *rpcManager) Shutdown() error {
 
 	if rpc.conn != nil {
-		rpc.stopRead <- true
 		rpc.stopWrite <- true
+		rpc.stopRead <- true
 		return rpc.conn.Close()
 	}
 
@@ -170,139 +163,5 @@ func (rpc *rpcManager) Listen() error {
 	}
 
 	rpc.conn = conn
-	rpc.dht.setConn(rpc.conn)
 	return nil
-}
-
-func (rpc *rpcManager) readLoop() error {
-	if err := rpc.Listen(); err != nil {
-		return nil
-	}
-	rpc.mainLoops.Add(1)
-	receivedMsgs := make([]Message, 0)
-
-	var next time.Time
-	var readDone chan readResult // non-nil channel means we are currently doing IO
-
-	for {
-
-		var readDelay time.Duration
-		if now := time.Now(); next.After(now) {
-			readDelay = next.Sub(now)
-		}
-
-		var startRead <-chan time.Time
-		// only start reading again if currently not reading
-		if readDone == nil && len(receivedMsgs) < maxMsgBuffer {
-			startRead = time.After(readDelay)
-		}
-
-		// fanout
-		var updates chan Message
-		var nextMessage Message
-		if len(receivedMsgs) > 0 {
-			nextMessage = receivedMsgs[0]
-			updates = rpc.getMessageChannel(nextMessage.MultiplexKey)
-		}
-
-		select {
-		case <-rpc.stopRead:
-			rpc.mainLoops.Done()
-			return nil
-
-		case result := <-readDone:
-			readDone = nil
-			if result.err != nil {
-				// try again
-				next = time.Now().Add(time.Millisecond * 100)
-				break
-			}
-
-			receivedMsgs = append(receivedMsgs, result.message)
-
-		case <-startRead:
-
-			readDone = make(chan readResult, 1)
-
-			go func() {
-				msg, err := rpc.readNextMessage()
-				readDone <- readResult{msg, err}
-			}()
-
-		case updates <- nextMessage:
-			receivedMsgs = receivedMsgs[1:]
-		}
-	}
-}
-
-func (rpc *rpcManager) writeLoop() error {
-	rpc.mainLoops.Add(1)
-	onNodeLookupReq := rpc.getMessageChannel(NodeLookupReq)
-	onPingReq := rpc.getMessageChannel(PingReq)
-	onFindValueReq := rpc.getMessageChannel(FindValueReq)
-	onStoreReq := rpc.getMessageChannel(StoreReq)
-
-	for {
-		select {
-		case <-rpc.stopWrite:
-			rpc.mainLoops.Done()
-			return nil
-		case <-rpc.doNodeLookup:
-		case <-rpc.doPing:
-
-		// Channels from readloop
-		// - trigger a reply
-		case <-onNodeLookupReq:
-		case <-onPingReq:
-		case <-onFindValueReq:
-		case <-onStoreReq:
-		}
-	}
-}
-
-func (rpc *rpcManager) processResponses() {
-	rpc.mainLoops.Add(1)
-	onNodeLookupRes := rpc.getMessageChannel(NodeLookupRes)
-	onPingRes := rpc.getMessageChannel(PingRes)
-	onFindValueRes := rpc.getMessageChannel(FindValueRes)
-	onStoreRes := rpc.getMessageChannel(StoreRes)
-
-	select {
-	case <-onNodeLookupRes:
-	case <-onPingRes:
-	case <-onFindValueRes:
-	case <-onStoreRes:
-	}
-}
-
-// helpers
-func (rpc *rpcManager) readNextMessage() (Message, error) {
-	msg := make([]byte, gokad.MessageSize)
-	rlen, _, err := rpc.conn.ReadFromUDP(msg)
-	if err != nil {
-		return Message{}, err
-	}
-
-	cpy := make([]byte, rlen)
-	copy(cpy, msg[:rlen])
-
-	return process(cpy)
-}
-
-func (rpc *rpcManager) getMessageChannel(key MessageType) chan Message {
-	isRes := isResponse(key)
-
-	if isRes {
-		c, _ := rpc.responses[key]
-		return c
-	}
-
-	c, _ := rpc.requests[key]
-
-	return c
-
-}
-
-func (rpc *rpcManager) startNodeLookup(id *gokad.ID) {
-
 }
