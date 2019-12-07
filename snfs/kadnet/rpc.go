@@ -38,7 +38,7 @@ type rpcManager struct {
 	dht        *DHT
 	port       int
 	address    string
-	conn       *net.UDPConn
+	mux *KadMux
 	// wait groups
 	mainLoops sync.WaitGroup
 	// channels
@@ -58,6 +58,7 @@ func NewRPCManager(address string, port int) RPCManager {
 		port:       port,
 		address:    address,
 		mainLoops:  sync.WaitGroup{},
+		mux: NewMux(),
 
 		stopRead:        make(chan bool),
 		stopWrite:       make(chan bool),
@@ -118,28 +119,19 @@ func (rpc *rpcManager) Name() string {
 }
 
 func (rpc *rpcManager) Run() error {
+
+
+
 	if err := rpc.Listen(); err != nil {
 		return err
 	}
-
-	receiver := NewReceiverThread(rpc.onResponse, rpc.onRequest, rpc.conn, &rpc.mainLoops)
-	reply := NewReplyThread(rpc.onResponse, rpc.onRequest, rpc.conn, &rpc.mainLoops)
-
-	go receiver.Run(rpc.stopRead)
-	go reply.Run(rpc.stopWrite)
-
-	rpc.mainLoops.Wait()
 
 	return nil
 }
 
 func (rpc *rpcManager) Shutdown() error {
 
-	if rpc.conn != nil {
-		rpc.stopWrite <- true
-		rpc.stopRead <- true
-		return rpc.conn.Close()
-	}
+	rpc.mux.shutdown()
 
 	return nil
 }
@@ -147,6 +139,9 @@ func (rpc *rpcManager) Shutdown() error {
 // Listen listens for udp packets
 // if no error encountered, rpc.conn is set
 func (rpc *rpcManager) Listen() error {
+
+	rpc.handleRPCs()
+
 	conn, err := net.ListenUDP("udp", &net.UDPAddr{
 		Port: rpc.port,
 		IP:   net.ParseIP(rpc.address),
@@ -156,6 +151,25 @@ func (rpc *rpcManager) Listen() error {
 		return err
 	}
 
-	rpc.conn = conn
-	return nil
+	return rpc.mux.start(conn)
+
+}
+
+func (rpc *rpcManager) handleRPCs() {
+	rpc.mux.HandleFunc(NodeLookup, rpc.NodeLookup())
+	rpc.mux.HandleFunc(FindNodeReq, rpc.FindNode())
+}
+
+
+// Rpc Handlers
+func (rpc *rpcManager) NodeLookup() RpcHandler {
+	return func(conn *net.UDPConn, buf *ReplyBuffers, req *Message) {
+
+	}
+}
+
+func (rpc *rpcManager) FindNode() RpcHandler {
+	return func(conn *net.UDPConn, buf *ReplyBuffers, req *Message) {
+
+	}
 }

@@ -4,7 +4,6 @@ import (
 	"github.com/alabianca/gokad"
 	"log"
 	"net"
-	"sync"
 	"time"
 )
 
@@ -12,20 +11,17 @@ type ReceiverThread struct {
 	fanoutReply  chan<- CompleteMessage
 	fanoutRequest chan<- CompleteMessage
 	conn         *net.UDPConn
-	wg           *sync.WaitGroup
 }
 
-func NewReceiverThread(res, req chan<- CompleteMessage, conn *net.UDPConn, wg *sync.WaitGroup) *ReceiverThread {
-	wg.Add(1)
+func NewReceiverThread(res, req chan<- CompleteMessage, conn *net.UDPConn) *ReceiverThread {
 	return &ReceiverThread{
 		fanoutReply:  res,
 		fanoutRequest: req,
-		wg:           wg,
 		conn:         conn,
 	}
 }
 
-func (r *ReceiverThread) Run(exit <-chan bool) {
+func (r *ReceiverThread) Run(exit <-chan chan error) {
 	receivedMsgs := make([]*readResult, 0)
 	var next time.Time
 	var readDone chan readResult // non-nil channel means we are currently doing IO
@@ -57,8 +53,8 @@ func (r *ReceiverThread) Run(exit <-chan bool) {
 
 
 		select {
-		case <-exit:
-			r.wg.Done()
+		case out := <-exit:
+			out <- nil
 			return
 
 		case result := <- readDone:

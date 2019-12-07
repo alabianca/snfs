@@ -3,12 +3,12 @@ package kadnet
 import (
 	"log"
 	"net"
-	"sync"
 )
+
+type RpcHandler func(conn *net.UDPConn, buf *ReplyBuffers, req *Message)
 
 type ReplyThread struct {
 	conn *net.UDPConn
-	wg         *sync.WaitGroup
 	onResponse <-chan CompleteMessage
 	onRequest  <-chan CompleteMessage
 
@@ -16,18 +16,16 @@ type ReplyThread struct {
 	nodeReplyBuffer *NodeReplyBuffer
 }
 
-func NewReplyThread(res, req <-chan CompleteMessage, conn *net.UDPConn, wg *sync.WaitGroup) *ReplyThread {
-	wg.Add(1)
+func NewReplyThread(res, req <-chan CompleteMessage, conn *net.UDPConn) *ReplyThread {
 	return &ReplyThread{
 		conn: conn,
-		wg:              wg,
 		onRequest:       req,
 		onResponse:      res,
 		nodeReplyBuffer: NewNodeReplyBuffer(),
 	}
 }
 
-func (r *ReplyThread) Run(exit chan bool) {
+func (r *ReplyThread) Run(exit <-chan chan error) {
 	queue := make([]CompleteMessage, 0)
 
 	for {
@@ -35,8 +33,8 @@ func (r *ReplyThread) Run(exit chan bool) {
 		select {
 		case msg := <-r.onResponse:
 			r.tempStoreMsg(msg.message)
-		case <-exit:
-			r.wg.Done()
+		case out := <-exit:
+			out <- nil
 			return
 		case msg := <-r.onRequest:
 			log.Printf("Recieved KademliaMessage %d\n", msg.message.MultiplexKey)

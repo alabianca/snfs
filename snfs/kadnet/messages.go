@@ -20,6 +20,7 @@ type KademliaMessage interface {
 }
 
 const (
+	NodeLookup   = MessageType(30)
 	FindNodeReq  = MessageType(20)
 	FindNodeRes  = MessageType(21)
 	PingReq      = MessageType(22)
