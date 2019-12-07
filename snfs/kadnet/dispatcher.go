@@ -7,9 +7,9 @@ type Dispatcher struct {
 	registeredWorkers []*Worker
 }
 
-func NewDispatcher(maxBuf int) *Dispatcher {
+func NewDispatcher() *Dispatcher {
 	d := &Dispatcher{
-		newWork:           make(chan WorkRequest, maxBuf),
+		newWork:           make(chan WorkRequest),
 		workers:           make(chan chan WorkRequest),
 		exit:              make(chan bool),
 		registeredWorkers: make([]*Worker, 0),

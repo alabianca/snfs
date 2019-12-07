@@ -5,6 +5,8 @@ import (
 	"sync"
 )
 
+const HandlerNotFoundErr = "Handler Not Found"
+
 type KadMux struct {
 	conn     *net.UDPConn
 	handlers map[MessageType]RpcHandler
