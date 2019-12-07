@@ -26,12 +26,12 @@ func NewReplyThread(res, req <-chan CompleteMessage, conn *net.UDPConn, h map[Me
 		onRequest:       req,
 		onResponse:      res,
 		handlers:        h,
-		dispatcher:      NewDispatcher(),
+		dispatcher:      NewDispatcher(10),
 		nodeReplyBuffer: NewNodeReplyBuffer(),
 	}
 }
 
-func (r *ReplyThread) StartDispatcher(max int) {
+func (r *ReplyThread) startDispatcher(max int) {
 	for i := 0; i < max; i++ {
 		w := NewWorker(i)
 		r.dispatcher.Dispatch(w)
@@ -41,6 +41,7 @@ func (r *ReplyThread) StartDispatcher(max int) {
 }
 
 func (r *ReplyThread) Run(exit <-chan chan error) {
+	r.startDispatcher(10)
 	queue := make([]CompleteMessage, 0)
 
 	for {

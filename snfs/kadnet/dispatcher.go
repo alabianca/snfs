@@ -1,5 +1,7 @@
 package kadnet
 
+import "log"
+
 type Dispatcher struct {
 	newWork           chan WorkRequest
 	workers           chan chan WorkRequest
@@ -7,10 +9,10 @@ type Dispatcher struct {
 	registeredWorkers []*Worker
 }
 
-func NewDispatcher() *Dispatcher {
+func NewDispatcher(maxWorkers int) *Dispatcher {
 	d := &Dispatcher{
 		newWork:           make(chan WorkRequest),
-		workers:           make(chan chan WorkRequest),
+		workers:           make(chan chan WorkRequest, maxWorkers),
 		exit:              make(chan bool),
 		registeredWorkers: make([]*Worker, 0),
 	}
@@ -43,7 +45,8 @@ func (d *Dispatcher) Start() {
 }
 
 func (d *Dispatcher) Stop() {
-	for _, w := range d.registeredWorkers {
+	for i, w := range d.registeredWorkers {
+		log.Printf("Stopping Worker %d\n", i)
 		w.Stop()
 	}
 

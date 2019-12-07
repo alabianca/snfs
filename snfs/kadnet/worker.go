@@ -1,6 +1,9 @@
 package kadnet
 
-import "net"
+import (
+	"log"
+	"net"
+)
 
 type WorkRequest struct {
 	Handler RpcHandler
@@ -34,6 +37,7 @@ func (w *Worker) Start(queue chan chan WorkRequest) {
 		case work := <- w.Work:
 			work.Handler(work.ArgConn, work.ArgBuf, work.ArgMessage)
 		case <-w.exit:
+			log.Printf("Exit Worker %d\n", w.id)
 			return
 
 		}

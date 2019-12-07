@@ -46,12 +46,13 @@ func (k *KadMux) shutdown() {
 func (k *KadMux) start(conn *net.UDPConn) error {
 	k.conn = conn // @todo create custom conn here
 	receiver := NewReceiverThread(k.onResponse, k.onRequest, k.conn)
-	reply := NewReplyThread(k.onResponse, k.onRequest, k.conn)
+	reply := NewReplyThread(k.onResponse, k.onRequest, k.conn, k.handlers)
 
 	k.stopReceiver = make(chan chan error)
 	k.stopReply = make(chan chan error)
 	go receiver.Run(k.stopReceiver)
 	go reply.Run(k.stopReply)
+
 
 	return <-k.exit
 }
