@@ -123,7 +123,7 @@ func (rpc *rpcManager) Run() error {
 	}
 
 	receiver := NewReceiverThread(rpc.onResponse, rpc.onRequest, rpc.conn, &rpc.mainLoops)
-	reply := NewReplyThread(rpc.onResponse, rpc.onRequest, rpc.conn, rpc.dht, &rpc.mainLoops)
+	reply := NewReplyThread(rpc.onResponse, rpc.onRequest, rpc.conn, &rpc.mainLoops)
 
 	go receiver.Run(rpc.stopRead)
 	go reply.Run(rpc.stopWrite)

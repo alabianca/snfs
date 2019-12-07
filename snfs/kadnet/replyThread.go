@@ -9,7 +9,6 @@ import (
 type ReplyThread struct {
 	conn *net.UDPConn
 	wg         *sync.WaitGroup
-	dht        *DHT
 	onResponse <-chan CompleteMessage
 	onRequest  <-chan CompleteMessage
 
@@ -17,11 +16,10 @@ type ReplyThread struct {
 	nodeReplyBuffer *NodeReplyBuffer
 }
 
-func NewReplyThread(res, req <-chan CompleteMessage, conn *net.UDPConn, dht *DHT, wg *sync.WaitGroup) *ReplyThread {
+func NewReplyThread(res, req <-chan CompleteMessage, conn *net.UDPConn, wg *sync.WaitGroup) *ReplyThread {
 	wg.Add(1)
 	return &ReplyThread{
 		conn: conn,
-		dht:             dht,
 		wg:              wg,
 		onRequest:       req,
 		onResponse:      res,
