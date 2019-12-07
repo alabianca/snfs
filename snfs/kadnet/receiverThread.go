@@ -46,9 +46,9 @@ func (r *ReceiverThread) Run(exit <-chan bool) {
 		var fanout chan<- CompleteMessage
 		var nextMessage CompleteMessage
 		if len(receivedMsgs) > 0 {
-			nextMessage = CompleteMessage{processMessage(receivedMsgs[0].message), receivedMsgs[0].remote}
+			nextMessage = CompleteMessage{receivedMsgs[0].message, receivedMsgs[0].remote}
 
-			if isResponse(nextMessage.message.MultiplexKey()) {
+			if isResponse(nextMessage.message.MultiplexKey) {
 				fanout = r.fanoutReply
 			} else {
 				fanout = r.fanoutRequest
@@ -79,7 +79,7 @@ func (r *ReceiverThread) Run(exit <-chan bool) {
 			}()
 
 		case fanout <- nextMessage:
-			log.Printf("Fanout Received Message %d\n", nextMessage.message.MultiplexKey())
+			log.Printf("Fanout Received KademliaMessage %d\n", nextMessage.message.MultiplexKey)
 			receivedMsgs = receivedMsgs[1:]
 		}
 

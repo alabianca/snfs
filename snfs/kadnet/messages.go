@@ -14,7 +14,7 @@ type MessageType int
 
 type KademliaMessage interface {
 	MultiplexKey() MessageType
-	Serialize() ([]byte, error)
+	Bytes() ([]byte, error)
 	GetRandomID() string
 	GetSenderID() string
 }
@@ -44,7 +44,7 @@ func makeMessageChannels(maxBuf int, messageTypes ...MessageType) map[MessageTyp
 const ErrNoMatchMessageSize = "byte length does not match message size"
 
 type CompleteMessage struct {
-	message KademliaMessage
+	message Message
 	sender  *net.UDPAddr
 }
 
@@ -140,7 +140,7 @@ func (n *FindNodeResponse) MultiplexKey() MessageType {
 	return FindNodeRes
 }
 
-func (n *FindNodeResponse) Serialize() ([]byte, error) {
+func (n *FindNodeResponse) Bytes() ([]byte, error) {
 	mkey := make([]byte, 1)
 	mkey[0] = byte(FindNodeRes)
 	sid, err := serializeID(n.senderID)
@@ -218,7 +218,7 @@ func (n *FindNodeRequest) MultiplexKey() MessageType {
 	return FindNodeReq
 }
 
-func (n *FindNodeRequest) Serialize() ([]byte, error) {
+func (n *FindNodeRequest) Bytes() ([]byte, error) {
 	mkey := make([]byte, 1)
 	mkey[0] = byte(FindNodeReq)
 

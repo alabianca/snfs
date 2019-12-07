@@ -49,7 +49,7 @@ type rpcManager struct {
 	onRequest    chan CompleteMessage
 	onResponse   chan CompleteMessage
 
-	receivedMessage chan Message
+	receivedMessage chan KademliaMessage
 }
 
 func NewRPCManager(address string, port int) RPCManager {
@@ -61,7 +61,7 @@ func NewRPCManager(address string, port int) RPCManager {
 
 		stopRead:        make(chan bool),
 		stopWrite:       make(chan bool),
-		receivedMessage: make(chan Message),
+		receivedMessage: make(chan KademliaMessage),
 		doNodeLookup:    make(chan *gokad.ID),
 		doPing:          make(chan *gokad.Contact),
 		onRequest:       make(chan CompleteMessage),
@@ -99,9 +99,9 @@ func (rpc *rpcManager) Bootstrap(port int, ip, idHex string) {
 	}
 
 	// start node lookup for own id
-	ownID := rpc.dht.Table.ID
-	nlr := newFindNodeRequest(ownID.String(), "", ownID.String())
-	rpc.onRequest <- CompleteMessage{nlr, nil}
+	//ownID := rpc.dht.Table.ID
+	//nlr := newFindNodeRequest(ownID.String(), "", ownID.String())
+	//rpc.onRequest <- CompleteMessage{nlr, nil}
 
 }
 
