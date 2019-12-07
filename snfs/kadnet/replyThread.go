@@ -52,13 +52,3 @@ func (r *ReplyThread) tempStoreMsg(km Message) {
 	}
 }
 
-//func (r *ReplyThread) nodeLookup(msg *CompleteMessage) func() {
-//	nlr := msg.message.(*FindNodeRequest)
-//	id,_ := gokad.From(nlr.payload)
-//	//buffer := r.nodeReplyBuffer
-//
-//	return func() {
-//		contacts := r.dht.FindNode(*id)
-//		log.Printf("Found %d contacts\n", len(contacts))
-//	}
-//}
