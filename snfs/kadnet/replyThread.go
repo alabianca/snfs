@@ -1,47 +1,32 @@
 package kadnet
 
 import (
-	"errors"
 	"log"
 	"net"
 )
 
-type RpcHandler func(conn *net.UDPConn, buf *ReplyBuffers, req *Message)
+type RpcHandler func(conn *net.UDPConn, req *Message)
 
 type ReplyThread struct {
 	conn       *net.UDPConn
 	onResponse <-chan CompleteMessage
 	onRequest  <-chan CompleteMessage
-	handlers   map[MessageType]RpcHandler
-	// thread pool
-	dispatcher *Dispatcher
 
 	// buffers
 	nodeReplyBuffer *NodeReplyBuffer
 }
 
-func NewReplyThread(res, req <-chan CompleteMessage, conn *net.UDPConn, h map[MessageType]RpcHandler) *ReplyThread {
+func NewReplyThread(res, req <-chan CompleteMessage, conn *net.UDPConn) *ReplyThread {
 	return &ReplyThread{
 		conn:            conn,
 		onRequest:       req,
 		onResponse:      res,
-		handlers:        h,
-		dispatcher:      NewDispatcher(10),
-		nodeReplyBuffer: NewNodeReplyBuffer(),
+		nodeReplyBuffer: GetNodeReplyBuffer(),
 	}
 }
 
-func (r *ReplyThread) startDispatcher(max int) {
-	for i := 0; i < max; i++ {
-		w := NewWorker(i)
-		r.dispatcher.Dispatch(w)
-	}
 
-	go r.dispatcher.Start()
-}
-
-func (r *ReplyThread) Run(exit <-chan chan error) {
-	r.startDispatcher(10)
+func (r *ReplyThread) Run(newWork chan<-WorkRequest, exit <-chan chan error) {
 	queue := make([]CompleteMessage, 0)
 
 	for {
@@ -56,14 +41,13 @@ func (r *ReplyThread) Run(exit <-chan chan error) {
 				continue
 			}
 
-			fanout = r.dispatcher.QueueWork()
+			fanout = newWork
 		}
 
 		select {
 		case msg := <-r.onResponse:
 			r.tempStoreMsg(msg.message)
 		case out := <-exit:
-			r.dispatcher.Stop()
 			out <- nil
 			return
 		case msg := <-r.onRequest:
@@ -86,16 +70,9 @@ func (r *ReplyThread) tempStoreMsg(km Message) {
 }
 
 func (r *ReplyThread) newWorkRequest(msg CompleteMessage) (WorkRequest, error) {
-	handler, ok := r.handlers[msg.message.MultiplexKey]
-	if !ok {
-		return WorkRequest{}, errors.New(HandlerNotFoundErr)
-	}
-	buf := &ReplyBuffers{nodeReplyBuffer: r.nodeReplyBuffer}
 	req :=  WorkRequest{
-		Handler:    handler,
 		ArgConn:    r.conn,
 		ArgMessage: &msg.message,
-		ArgBuf:     buf,
 	}
 
 	return req, nil

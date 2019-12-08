@@ -3,7 +3,6 @@ package kadnet
 import (
 	"github.com/alabianca/gokad"
 	"net"
-	"sync"
 )
 
 const maxMsgBuffer = 100
@@ -24,7 +23,6 @@ type Manager interface {
 	Name() string
 	ID() string
 	Run() error
-	Listen() error
 	Shutdown() error
 }
 
@@ -35,38 +33,17 @@ type RPC interface {
 }
 
 type rpcManager struct {
-	dht        *DHT
-	port       int
-	address    string
-	mux *KadMux
-	// wait groups
-	mainLoops sync.WaitGroup
-	// channels
-	stopRead     chan bool
-	stopWrite    chan bool
-	doNodeLookup chan *gokad.ID
-	doPing       chan *gokad.Contact
-	onRequest    chan CompleteMessage
-	onResponse   chan CompleteMessage
-
-	receivedMessage chan KademliaMessage
+	dht    *DHT
+	server *Server
 }
 
 func NewRPCManager(address string, port int) RPCManager {
-	return &rpcManager{
-		dht:        NewDHT(),
-		port:       port,
-		address:    address,
-		mainLoops:  sync.WaitGroup{},
-		mux: NewMux(),
+	dht := NewDHT()
+	server := NewServer(dht, address, port)
 
-		stopRead:        make(chan bool),
-		stopWrite:       make(chan bool),
-		receivedMessage: make(chan KademliaMessage),
-		doNodeLookup:    make(chan *gokad.ID),
-		doPing:          make(chan *gokad.Contact),
-		onRequest:       make(chan CompleteMessage),
-		onResponse:      make(chan CompleteMessage),
+	return &rpcManager{
+		dht:    NewDHT(),
+		server: server,
 	}
 }
 
@@ -88,11 +65,10 @@ func NewRPCManager(address string, port int) RPCManager {
 https://pub.tik.ee.ethz.ch/students/2006-So/SA-2006-19.pdf
 **/
 func (rpc *rpcManager) Bootstrap(port int, ip, idHex string) {
-	c, _, err := rpc.dht.Bootstrap(port, ip, idHex)
+	_, _, err := rpc.dht.Bootstrap(port, ip, idHex)
 	// at capacity means we ping the head to see if it is still active. at this point contact is not inserted
 	// c is the head
 	if err != nil && err.Error() == gokad.ErrBucketAtCapacity {
-		rpc.doPing <- c
 		return
 	}
 	if err != nil {
@@ -120,9 +96,7 @@ func (rpc *rpcManager) Name() string {
 
 func (rpc *rpcManager) Run() error {
 
-
-
-	if err := rpc.Listen(); err != nil {
+	if err := rpc.server.Listen(); err != nil {
 		return err
 	}
 
@@ -131,45 +105,7 @@ func (rpc *rpcManager) Run() error {
 
 func (rpc *rpcManager) Shutdown() error {
 
-	rpc.mux.shutdown()
+	rpc.server.Shutdown()
 
 	return nil
-}
-
-// Listen listens for udp packets
-// if no error encountered, rpc.conn is set
-func (rpc *rpcManager) Listen() error {
-
-	rpc.handleRPCs()
-
-	conn, err := net.ListenUDP("udp", &net.UDPAddr{
-		Port: rpc.port,
-		IP:   net.ParseIP(rpc.address),
-	})
-
-	if err != nil {
-		return err
-	}
-
-	return rpc.mux.start(conn)
-
-}
-
-func (rpc *rpcManager) handleRPCs() {
-	rpc.mux.HandleFunc(NodeLookup, rpc.NodeLookup())
-	rpc.mux.HandleFunc(FindNodeReq, rpc.FindNode())
-}
-
-
-// Rpc Handlers
-func (rpc *rpcManager) NodeLookup() RpcHandler {
-	return func(conn *net.UDPConn, buf *ReplyBuffers, req *Message) {
-
-	}
-}
-
-func (rpc *rpcManager) FindNode() RpcHandler {
-	return func(conn *net.UDPConn, buf *ReplyBuffers, req *Message) {
-
-	}
 }

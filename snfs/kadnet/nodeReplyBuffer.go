@@ -1,8 +1,19 @@
 package kadnet
 
 import (
+	"sync"
 	"time"
 )
+
+var nodeReplyBufferInstance *NodeReplyBuffer
+var onceRBuf sync.Once
+func GetNodeReplyBuffer() *NodeReplyBuffer {
+	onceRBuf.Do(func() {
+		nodeReplyBufferInstance = newNodeReplyBuffer()
+	})
+
+	return nodeReplyBufferInstance
+}
 
 type bufferQuery struct {
 	id       string
@@ -19,7 +30,7 @@ type NodeReplyBuffer struct {
 	subscribe  chan bufferQuery
 }
 
-func NewNodeReplyBuffer() *NodeReplyBuffer {
+func newNodeReplyBuffer() *NodeReplyBuffer {
 	return &NodeReplyBuffer{
 		messages:    make(map[string]KademliaMessage),
 		active:      false,
