@@ -2,13 +2,12 @@ package kadnet
 
 import (
 	"log"
-	"net"
 )
 
-type RpcHandler func(conn *net.UDPConn, req *Message)
+type RpcHandler func(conn *Conn, req *Message)
 
 type ReplyThread struct {
-	conn       *net.UDPConn
+	conn       *Conn
 	onResponse <-chan CompleteMessage
 	onRequest  <-chan CompleteMessage
 
@@ -16,7 +15,7 @@ type ReplyThread struct {
 	nodeReplyBuffer *NodeReplyBuffer
 }
 
-func NewReplyThread(res, req <-chan CompleteMessage, conn *net.UDPConn) *ReplyThread {
+func NewReplyThread(res, req <-chan CompleteMessage, conn *Conn) *ReplyThread {
 	return &ReplyThread{
 		conn:            conn,
 		onRequest:       req,
@@ -65,7 +64,7 @@ func (r *ReplyThread) tempStoreMsg(km Message) {
 	switch km.MultiplexKey {
 	case FindNodeRes:
 		log.Printf("Store Lookup Response %s\n", km.SenderID)
-		r.nodeReplyBuffer.Put(processMessage(km))
+		r.nodeReplyBuffer.Put(km)
 	}
 }
 

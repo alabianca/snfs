@@ -48,7 +48,7 @@ const ErrNoMatchMessageSize = "byte length does not match message size"
 
 type CompleteMessage struct {
 	message Message
-	sender  *net.UDPAddr
+	sender  net.Addr
 }
 
 type Message struct {
@@ -90,7 +90,7 @@ func process(raw []byte) (Message, error) {
 	return message, nil
 }
 
-func toKademliaMessage(msg Message, km KademliaMessage) {
+func toKademliaMessage(msg *Message, km KademliaMessage) {
 
 	switch v := km.(type) {
 	case *FindNodeRequest:
@@ -167,7 +167,7 @@ func toContact(b []byte) (gokad.Contact, error) {
 
 }
 
-func processMessage(msg Message) KademliaMessage {
+func processMessage(msg *Message) KademliaMessage {
 	var out KademliaMessage
 	switch msg.MultiplexKey {
 	case FindNodeReq:

@@ -21,16 +21,26 @@ func NewServer(dht *DHT, host string, port int) *Server {
 func (s *Server) Listen() error {
 	s.registerRequestHandlers()
 
-	conn, err := s.listen()
+	c, err := s.listen()
 	if err != nil {
 		return err
 	}
+
+	conn := NewConn(c)
+	defer conn.Close()
 
 	return s.mux.start(conn)
 }
 
 func (s *Server) Shutdown() {
 	s.mux.shutdown()
+}
+
+func (s *Server) NewClient() *Client {
+	return &Client{
+		id: s.dht.Table.ID.String(),
+
+	}
 }
 
 func (s *Server) listen() (*net.UDPConn, error) {
@@ -48,7 +58,7 @@ func (s *Server) registerRequestHandlers() {
 
 // RPC Handlers
 func (s *Server) onFindNode() RpcHandler {
-	return func(conn *net.UDPConn, req *Message) {
+	return func(conn *Conn, req *Message) {
 
 	}
 }

@@ -10,7 +10,7 @@ const ServiceName = "RPCManager"
 
 type readResult struct {
 	message Message
-	remote  *net.UDPAddr
+	remote  net.Addr
 	err     error
 }
 

@@ -2,12 +2,11 @@ package kadnet
 
 import (
 	"log"
-	"net"
 )
 
 type WorkRequest struct {
 	Handler RpcHandler
-	ArgConn *net.UDPConn
+	ArgConn *Conn
 	ArgMessage *Message
 }
 

@@ -9,7 +9,7 @@ const WrongResponseTypeErr = "Wrong Response"
 
 type Client struct {
 	id string
-	doReq chan<- KademliaMessage
+	doReq chan<- *Request
 }
 
 func (c *Client) FindNode(contact gokad.Contact, lookupId string) ([]gokad.Contact, error) {
@@ -21,11 +21,10 @@ func (c *Client) FindNode(contact gokad.Contact, lookupId string) ([]gokad.Conta
 }
 
 func (c *Client) findNode(contact gokad.Contact, lookupId string) ([]gokad.Contact, error) {
-	req := newFindNodeRequest(c.id, "", lookupId)
-	c.doReq <- req
+	req := NewRequest(contact, newFindNodeRequest(c.id, "", lookupId))
 
-	buf := GetNodeReplyBuffer()
-	res, err := buf.GetMessage(contact.ID.String())
+	res, err := c.do(req)
+
 
 	if err != nil {
 		return nil, err
@@ -40,6 +39,14 @@ func (c *Client) findNode(contact gokad.Contact, lookupId string) ([]gokad.Conta
 
 	return nodeReply.payload, nil
 
+}
+
+func (c *Client) do(req *Request) (*Message, error) {
+	c.doReq <- req
+	buf := GetNodeReplyBuffer()
+	res, err := buf.GetMessage(req.Host())
+
+	return &res, err
 }
 
 func (c *Client) sendPingReply(contact gokad.Contact) {

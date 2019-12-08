@@ -1,19 +1,17 @@
 package kadnet
 
 import (
-	"github.com/alabianca/gokad"
 	"log"
-	"net"
 	"time"
 )
 
 type ReceiverThread struct {
 	fanoutReply  chan<- CompleteMessage
 	fanoutRequest chan<- CompleteMessage
-	conn         *net.UDPConn
+	conn         *Conn
 }
 
-func NewReceiverThread(res, req chan<- CompleteMessage, conn *net.UDPConn) *ReceiverThread {
+func NewReceiverThread(res, req chan<- CompleteMessage, conn *Conn) *ReceiverThread {
 	return &ReceiverThread{
 		fanoutReply:  res,
 		fanoutRequest: req,
@@ -69,7 +67,7 @@ func (r *ReceiverThread) Run(exit <-chan chan error) {
 		case <-startRead:
 			readDone = make(chan readResult, 1)
 			go func() {
-				msg, raddr, err := r.readNextMessage()
+				msg, raddr, err := r.conn.Next()
 				log.Printf("Received a message %d %s\n", msg.MultiplexKey, err)
 				readDone <- readResult{msg, raddr, err}
 			}()
@@ -82,18 +80,3 @@ func (r *ReceiverThread) Run(exit <-chan chan error) {
 	}
 }
 
-func (r *ReceiverThread) readNextMessage() (Message, *net.UDPAddr, error) {
-	msg := make([]byte, gokad.MessageSize)
-	rlen, raddr, err := r.conn.ReadFromUDP(msg)
-	if err != nil {
-		return Message{}, nil, err
-	}
-
-	cpy := make([]byte, rlen)
-	copy(cpy, msg[:rlen])
-
-	out, err := process(cpy)
-
-	return out, raddr, err
-
-}

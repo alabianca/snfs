@@ -1,13 +1,10 @@
 package kadnet
 
-import (
-	"net"
-)
 
 const HandlerNotFoundErr = "Handler Not Found"
 
 type KadMux struct {
-	conn     *net.UDPConn
+	conn     *Conn
 	handlers map[MessageType]RpcHandler
 	dispatcher *Dispatcher
 	// channels
@@ -46,7 +43,7 @@ func (k *KadMux) shutdown() {
 	}
 }
 
-func (k *KadMux) start(conn *net.UDPConn) error {
+func (k *KadMux) start(conn *Conn) error {
 	k.conn = conn // @todo create custom conn here
 	k.startDispatcher(10) // @todo get max workers from somewhere else
 	receiver := NewReceiverThread(k.onResponse, k.onRequest, k.conn)
