@@ -6,25 +6,66 @@ import (
 	"sync"
 )
 
-type Conn struct {
-	conn net.PacketConn
-	mtx  sync.Mutex
+type WriterFactory func(conn net.PacketConn) func(addr net.Addr) KadWriter
+
+type KadConn interface {
+	KadReader
+	WriterFactory() func(addr net.Addr) KadWriter
+	Close() error
 }
 
-func NewConn(c net.PacketConn) *Conn {
-	return &Conn{
+
+type KadReader interface {
+	Next() (Message, net.Addr, error)
+}
+
+type KadWriter interface {
+	Write(p []byte) (int, error)
+}
+
+type writer struct {
+	addr net.Addr
+	mtx *sync.Mutex
+	conn net.PacketConn
+}
+
+func (w *writer) Write(p []byte) (int, error) {
+	return w.write(p)
+}
+
+func (w *writer) write(p []byte) (int, error) {
+	w.mtx.Lock()
+	defer w.mtx.Unlock()
+	written := 0
+	for written < len(p) {
+		n, err := w.conn.WriteTo(p[written:], w.addr)
+		if err != nil {
+			return written,  err
+		}
+
+		written+=n
+	}
+
+	return written, nil
+}
+
+type conn struct {
+	conn net.PacketConn
+}
+
+func NewConn(c net.PacketConn) KadConn {
+	return &conn{
 		conn: c,
-		mtx:  sync.Mutex{},
 	}
 }
 
-func (c *Conn) Close() error {
+func (c *conn) Close() error {
 	return c.conn.Close()
 }
 
-func (c *Conn) Next() (Message, net.Addr, error) {
+func (c *conn) Next() (Message, net.Addr, error) {
 	msg := make([]byte, gokad.MessageSize)
-	rlen, raddr, err := c.ReadFromUDP(msg)
+	rlen, raddr, err := c.conn.ReadFrom(msg)
 	if err != nil {
 		return Message{}, nil, err
 	}
@@ -37,24 +78,17 @@ func (c *Conn) Next() (Message, net.Addr, error) {
 	return out, raddr, err
 }
 
-func (c *Conn) ReadFromUDP(p []byte) (int, net.Addr, error) {
-	return c.conn.ReadFrom(p)
-}
-
-func (c *Conn) WriteAll(p []byte, addr net.Addr) (error) {
-	c.mtx.Lock()
-	defer c.mtx.Unlock()
-	written := 0
-	for written < len(p) {
-		n, err := c.conn.WriteTo(p[written:], addr)
-		if err != nil {
-			return err
+func (c *conn) WriterFactory() func(addr net.Addr) KadWriter {
+	mtx := new(sync.Mutex)
+	return func(addr net.Addr) KadWriter {
+		return &writer{
+			addr: addr,
+			mtx:  mtx,
+			conn: c.conn,
 		}
-
-		written+=n
 	}
-
-	return nil
 }
+
+
 
 
