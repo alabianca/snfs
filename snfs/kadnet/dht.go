@@ -7,6 +7,18 @@ import (
 	"github.com/alabianca/gokad"
 )
 
+var dhtInstance *DHT
+var onceDht sync.Once
+
+// GetDHT returns a DHT singleton
+func GetDHT() *DHT {
+	onceDht.Do(func() {
+		dhtInstance = newDHT()
+	})
+
+	return dhtInstance
+}
+
 type DHT struct {
 	Table   *gokad.DHT
 	Port    int
@@ -14,7 +26,7 @@ type DHT struct {
 	mtx     sync.Mutex
 }
 
-func NewDHT() *DHT {
+func newDHT() *DHT {
 	return &DHT{
 		Table: gokad.NewDHT(),
 		mtx:   sync.Mutex{},
@@ -31,9 +43,6 @@ func (dht *DHT) Bootstrap(port int, ip, idHex string) (*gokad.Contact, int, erro
 	return dht.Table.Bootstrap(port, net.ParseIP(ip), idHex)
 }
 
-func (dht *DHT) NodeLookup(id *gokad.ID, reply *FindNodeResponse) error {
-	return nil
-}
 
 func (dht *DHT) FindNode(id gokad.ID) []gokad.Contact {
 	dht.mtx.Lock()

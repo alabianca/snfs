@@ -1,9 +1,13 @@
 package kadnet
 
 import (
+	"errors"
+	"fmt"
 	"sync"
 	"time"
 )
+
+const TimeoutErr = "Timeout Occured"
 
 var nodeReplyBufferInstance *NodeReplyBuffer
 var onceRBuf sync.Once
@@ -17,25 +21,25 @@ func GetNodeReplyBuffer() *NodeReplyBuffer {
 
 type bufferQuery struct {
 	id       string
-	response chan KademliaMessage
+	response chan Message
 }
 
 type NodeReplyBuffer struct {
-	messages    map[string]KademliaMessage
+	messages    map[string]Message
 	active      bool
 	waitTimeout time.Duration
 	// channels
-	newMessage chan KademliaMessage
+	newMessage chan Message
 	exit       chan bool
 	subscribe  chan bufferQuery
 }
 
 func newNodeReplyBuffer() *NodeReplyBuffer {
 	return &NodeReplyBuffer{
-		messages:    make(map[string]KademliaMessage),
+		messages:    make(map[string]Message),
 		active:      false,
 		waitTimeout: time.Second * 5,
-		newMessage:  make(chan KademliaMessage),
+		newMessage:  make(chan Message),
 		exit:        make(chan bool),
 		subscribe:   make(chan bufferQuery),
 	}
@@ -60,7 +64,7 @@ func (n *NodeReplyBuffer) IsOpen() bool {
 	return n.active
 }
 
-func (n *NodeReplyBuffer) Put(c KademliaMessage) bool {
+func (n *NodeReplyBuffer) Put(c Message) bool {
 	if !n.IsOpen() {
 		return false
 	}
@@ -70,32 +74,32 @@ func (n *NodeReplyBuffer) Put(c KademliaMessage) bool {
 	return true
 }
 
-func (n *NodeReplyBuffer) getMessage(id string) KademliaMessage {
-	query := bufferQuery{id, make(chan KademliaMessage)}
+func (n *NodeReplyBuffer) GetMessage(id string) (Message, error) {
+	query := bufferQuery{id, make(chan Message)}
 	n.subscribe <- query
 
 	select {
 	case <-time.After(n.waitTimeout):
-		return nil
+		return Message{}, errors.New(TimeoutErr)
 	case m := <-query.response:
-		return m
+		return m, nil
 	}
 }
 
 func (n *NodeReplyBuffer) accept() {
-	pending := make(map[string]chan KademliaMessage)
+	pending := make(map[string]chan Message)
 
 	for {
 
 		select {
 		case m := <-n.newMessage:
-			senderId := m.GetSenderID()
+			senderId := fmt.Sprintf("%x", m.SenderID)
 			n.messages[senderId] = m
 			c, ok := pending[senderId]
 			if ok {
 				c <- m
 			} else {
-				out := make(chan KademliaMessage, 1)
+				out := make(chan Message, 1)
 				pending[senderId] = out
 				out <- m
 
@@ -107,7 +111,7 @@ func (n *NodeReplyBuffer) accept() {
 				msg := <-c
 				sub.response <- msg
 			} else {
-				out := make(chan KademliaMessage, 1)
+				out := make(chan Message, 1)
 				pending[sub.id] = out
 			}
 

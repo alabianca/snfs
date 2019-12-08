@@ -1,6 +1,8 @@
 package kadnet
 
 import (
+	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"net"
@@ -93,12 +95,75 @@ func toKademliaMessage(msg Message, km KademliaMessage) {
 	switch v := km.(type) {
 	case *FindNodeRequest:
 		*v = FindNodeRequest{
-			randomID:     fmt.Sprintf("%x", msg.RandomID),
-			echoRandomID: fmt.Sprintf("%x", msg.EchoedRandomID),
-			senderID:     fmt.Sprintf("%x", msg.SenderID),
-			payload:      fmt.Sprintf("%x", msg.Payload),
+			randomID:     toStringId(msg.RandomID),
+			echoRandomID: toStringId(msg.EchoedRandomID),
+			senderID:     toStringId(msg.SenderID),
+			payload:      toStringId(msg.Payload),
+		}
+	case *FindNodeResponse:
+		*v = FindNodeResponse{
+			senderID:     toStringId(msg.SenderID),
+			echoRandomID: toStringId(msg.EchoedRandomID),
+			payload:      processContacts(msg.Payload),
+			randomID:     toStringId(msg.RandomID),
 		}
 	}
+
+}
+
+func processContacts(raw []byte) []gokad.Contact {
+
+	split := bytes.Split(raw, []byte("/"))
+	out := make([]gokad.Contact, len(split))
+
+	insert := 0
+	for _, c := range split {
+		contact, err := toContact(c)
+		if err == nil {
+			out[insert] = contact
+			insert++
+		}
+	}
+
+	return out
+}
+
+func toContact(b []byte) (gokad.Contact, error) {
+	l := len(b)
+	if l == 0 {
+		return gokad.Contact{}, errors.New("Empty Contact")
+	}
+
+	idOffset := 0
+	portOffset := 20
+	ipOffset := 22
+
+	if l <= ipOffset {
+		return gokad.Contact{}, errors.New("Malformed Contact")
+	}
+
+	idBytes := b[idOffset:portOffset]
+	portBytes := b[portOffset:ipOffset]
+	ipBytes := b[ipOffset:len(b)]
+	ip := net.ParseIP(string(ipBytes))
+
+	if ip == nil {
+		return gokad.Contact{}, errors.New("Invalid IP")
+	}
+
+	port := binary.BigEndian.Uint16(portBytes)
+	id, err := gokad.From(toStringId(idBytes))
+	if err != nil {
+		return gokad.Contact{}, errors.New("Invalid ID")
+	}
+
+	c := gokad.Contact{
+		ID:   id,
+		IP:   ip,
+		Port: int(port),
+	}
+
+	return c, nil
 
 }
 
@@ -189,8 +254,9 @@ func serializeID(id string) ([]byte, error) {
 	return util.BytesFromHex(id)
 }
 
-
-
+func toStringId(id []byte) string {
+	return fmt.Sprintf("%x", id)
+}
 
 // FIND NODE REQUEST
 
@@ -208,10 +274,10 @@ func newFindNodeRequest(sID, eID, payload string) *FindNodeRequest {
 	}
 
 	return &FindNodeRequest{
-		senderID: sID,
+		senderID:     sID,
 		echoRandomID: eID,
-		payload: payload,
-		randomID: rID,
+		payload:      payload,
+		randomID:     rID,
 	}
 }
 

@@ -38,11 +38,11 @@ type rpcManager struct {
 }
 
 func NewRPCManager(address string, port int) RPCManager {
-	dht := NewDHT()
-	server := NewServer(dht, address, port)
+
+	server := NewServer(GetDHT(), address, port)
 
 	return &rpcManager{
-		dht:    NewDHT(),
+		dht:    GetDHT(),
 		server: server,
 	}
 }
