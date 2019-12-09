@@ -6,8 +6,8 @@ import (
 
 type WorkRequest struct {
 	Handler RpcHandler
-	ArgConn *Conn
-	ArgMessage *Message
+	ArgConn KadWriter
+	ArgRequest *Request
 }
 
 type Worker struct {
@@ -33,7 +33,7 @@ func (w *Worker) Start(queue chan chan WorkRequest) {
 
 		select {
 		case work := <- w.Work:
-			work.Handler(work.ArgConn, work.ArgMessage)
+			work.Handler(work.ArgConn, work.ArgRequest)
 		case <-w.exit:
 			log.Printf("Exit Worker %d\n", w.id)
 			return

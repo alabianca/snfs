@@ -26,8 +26,6 @@ type Manager interface {
 	Shutdown() error
 }
 
-type Handler func(c *Conn)
-
 type RPC interface {
 	Bootstrap(port int, ip, idHex string)
 }

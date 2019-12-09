@@ -8,10 +8,10 @@ import (
 type ReceiverThread struct {
 	fanoutReply  chan<- CompleteMessage
 	fanoutRequest chan<- CompleteMessage
-	conn         *Conn
+	conn         KadReader
 }
 
-func NewReceiverThread(res, req chan<- CompleteMessage, conn *Conn) *ReceiverThread {
+func NewReceiverThread(res, req chan<- CompleteMessage, conn KadReader) *ReceiverThread {
 	return &ReceiverThread{
 		fanoutReply:  res,
 		fanoutRequest: req,

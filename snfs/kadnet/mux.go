@@ -1,12 +1,14 @@
 package kadnet
 
+import "net"
 
 const HandlerNotFoundErr = "Handler Not Found"
 
 type KadMux struct {
-	conn     *Conn
+	conn     KadConn
 	handlers map[MessageType]RpcHandler
 	dispatcher *Dispatcher
+	newWriterFunc func(addr net.Addr) KadWriter
 	// channels
 	dispatchRequest chan WorkRequest
 	onResponse   chan CompleteMessage
@@ -43,11 +45,12 @@ func (k *KadMux) shutdown() {
 	}
 }
 
-func (k *KadMux) start(conn *Conn) error {
+func (k *KadMux) start(conn KadConn) error {
 	k.conn = conn // @todo create custom conn here
 	k.startDispatcher(10) // @todo get max workers from somewhere else
+	k.newWriterFunc = conn.WriterFactory()
 	receiver := NewReceiverThread(k.onResponse, k.onRequest, k.conn)
-	reply := NewReplyThread(k.onResponse, k.onRequest, k.conn)
+	reply := NewReplyThread(k.onResponse, k.onRequest, k.newWriterFunc)
 
 	k.stopReceiver = make(chan chan error)
 	k.stopReply = make(chan chan error)
@@ -87,7 +90,7 @@ func (k *KadMux) handleRequests() {
 		case fanout <- next:
 			queue = queue[1:]
 		case work := <- k.dispatchRequest:
-			handler, ok := k.handlers[work.ArgMessage.MultiplexKey]
+			handler, ok := k.handlers[work.ArgRequest.MultiplexKey()]
 			if !ok {
 				continue
 			}

@@ -7,6 +7,7 @@ type Server struct {
 	host string
 	port int
 	mux *KadMux
+	newClientReq chan *Request
 }
 
 func NewServer(dht *DHT, host string, port int) *Server {
@@ -15,6 +16,7 @@ func NewServer(dht *DHT, host string, port int) *Server {
 		host: host,
 		port: port,
 		mux:  NewMux(),
+		newClientReq: make(chan *Request),
 	}
 }
 
@@ -39,7 +41,7 @@ func (s *Server) Shutdown() {
 func (s *Server) NewClient() *Client {
 	return &Client{
 		id: s.dht.Table.ID.String(),
-
+		doReq: s.newClientReq,
 	}
 }
 
@@ -56,9 +58,10 @@ func (s *Server) registerRequestHandlers() {
 	s.mux.HandleFunc(FindNodeReq, s.onFindNode())
 }
 
+
 // RPC Handlers
 func (s *Server) onFindNode() RpcHandler {
-	return func(conn *Conn, req *Message) {
+	return func(conn KadWriter, req *Request) {
 
 	}
 }

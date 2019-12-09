@@ -1,31 +1,30 @@
 package kadnet
 
 import (
-	"log"
+	"github.com/alabianca/gokad"
+	"net"
 )
 
-type RpcHandler func(conn *Conn, req *Message)
+type RpcHandler func(conn KadWriter, req *Request)
 
 type ReplyThread struct {
-	conn       *Conn
-	onResponse <-chan CompleteMessage
-	onRequest  <-chan CompleteMessage
-
+	onResponse    <-chan CompleteMessage
+	onRequest     <-chan CompleteMessage
+	newWriterFunc func(addr net.Addr) KadWriter
 	// buffers
 	nodeReplyBuffer *NodeReplyBuffer
 }
 
-func NewReplyThread(res, req <-chan CompleteMessage, conn *Conn) *ReplyThread {
+func NewReplyThread(res, req <-chan CompleteMessage, nwf func(addr net.Addr) KadWriter) *ReplyThread {
 	return &ReplyThread{
-		conn:            conn,
 		onRequest:       req,
 		onResponse:      res,
 		nodeReplyBuffer: GetNodeReplyBuffer(),
+		newWriterFunc:   nwf,
 	}
 }
 
-
-func (r *ReplyThread) Run(newWork chan<-WorkRequest, exit <-chan chan error) {
+func (r *ReplyThread) Run(newWork chan<- WorkRequest, exit <-chan chan error) {
 	queue := make([]CompleteMessage, 0)
 
 	for {
@@ -50,7 +49,6 @@ func (r *ReplyThread) Run(newWork chan<-WorkRequest, exit <-chan chan error) {
 			out <- nil
 			return
 		case msg := <-r.onRequest:
-			log.Printf("Recieved Message %d\n", msg.message.MultiplexKey)
 			queue = append(queue, msg)
 
 		case fanout <- next:
@@ -63,16 +61,33 @@ func (r *ReplyThread) Run(newWork chan<-WorkRequest, exit <-chan chan error) {
 func (r *ReplyThread) tempStoreMsg(km Message) {
 	switch km.MultiplexKey {
 	case FindNodeRes:
-		log.Printf("Store Lookup Response %s\n", km.SenderID)
 		r.nodeReplyBuffer.Put(km)
 	}
 }
 
 func (r *ReplyThread) newWorkRequest(msg CompleteMessage) (WorkRequest, error) {
-	req :=  WorkRequest{
-		ArgConn:    r.conn,
-		ArgMessage: &msg.message,
+	km := processMessage(&msg.message)
+	id, err := gokad.From(toStringId(msg.message.SenderID))
+	if err != nil {
+		return WorkRequest{}, err
+	}
+	udpAddr, err := net.ResolveUDPAddr("udp", msg.sender.String())
+	if err != nil {
+		return WorkRequest{}, err
 	}
 
-	return req, nil
+	contact := gokad.Contact{
+		ID:   id,
+		IP:   udpAddr.IP,
+		Port: udpAddr.Port,
+	}
+
+	req := NewRequest(contact, km)
+
+	wReq := WorkRequest{
+		ArgConn:    r.newWriterFunc(msg.sender),
+		ArgRequest: req,
+	}
+
+	return wReq, nil
 }
