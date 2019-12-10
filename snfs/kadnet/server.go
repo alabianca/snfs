@@ -29,9 +29,12 @@ func (s *Server) Listen() error {
 	}
 
 	conn := NewConn(c)
+	nwf := conn.WriterFactory()
 	defer conn.Close()
 
-	return s.mux.start(conn)
+	go s.handleClientRequests(nwf)
+
+	return s.mux.start(conn, nwf)
 }
 
 func (s *Server) Shutdown() {
@@ -56,6 +59,17 @@ func (s *Server) listen() (*net.UDPConn, error) {
 
 func (s *Server) registerRequestHandlers() {
 	s.mux.HandleFunc(FindNodeReq, s.onFindNode())
+}
+
+func (s *Server) handleClientRequests(nwf func(addr net.Addr) KadWriter) {
+	for req := range s.newClientReq {
+		writer := nwf(req.Address())
+		go s.doRequest(req, writer)
+	}
+}
+
+func (s *Server) doRequest(req *Request, w KadWriter) {
+
 }
 
 

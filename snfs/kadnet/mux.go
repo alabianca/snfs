@@ -5,7 +5,7 @@ import "net"
 const HandlerNotFoundErr = "Handler Not Found"
 
 type KadMux struct {
-	conn     KadConn
+	reader     KadReader
 	handlers map[MessageType]RpcHandler
 	dispatcher *Dispatcher
 	newWriterFunc func(addr net.Addr) KadWriter
@@ -21,7 +21,7 @@ type KadMux struct {
 
 func NewMux() *KadMux {
 	return &KadMux{
-		conn:       nil,
+		reader:       nil,
 		dispatcher: NewDispatcher(10),
 		stopDispatcher: make(chan bool),
 		handlers:   make(map[MessageType]RpcHandler),
@@ -45,11 +45,11 @@ func (k *KadMux) shutdown() {
 	}
 }
 
-func (k *KadMux) start(conn KadConn) error {
-	k.conn = conn // @todo create custom conn here
+func (k *KadMux) start(reader KadReader, nwf func(addr net.Addr) KadWriter) error {
+	k.reader = reader
 	k.startDispatcher(10) // @todo get max workers from somewhere else
-	k.newWriterFunc = conn.WriterFactory()
-	receiver := NewReceiverThread(k.onResponse, k.onRequest, k.conn)
+	k.newWriterFunc = nwf
+	receiver := NewReceiverThread(k.onResponse, k.onRequest, k.reader)
 	reply := NewReplyThread(k.onResponse, k.onRequest, k.newWriterFunc)
 
 	k.stopReceiver = make(chan chan error)
