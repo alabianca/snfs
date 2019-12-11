@@ -8,6 +8,7 @@ import (
 	"github.com/alabianca/snfs/snfs/kadnet/request"
 	"log"
 	"net"
+	"strconv"
 )
 
 type Server struct {
@@ -56,11 +57,13 @@ func (s *Server) NewClient() *client.Client {
 	}
 }
 
-func (s *Server) listen() (*net.UDPConn, error) {
-	conn, err := net.ListenUDP("udp", &net.UDPAddr{
-		IP:   net.ParseIP(s.host),
-		Port: s.port,
-	})
+func (s *Server) listen() (net.PacketConn, error) {
+	//conn, err := net.ListenUDP("udp", &net.UDPAddr{
+	//	IP:   net.ParseIP(s.host),
+	//	Port: s.port,
+	//})
+
+	conn, err := net.ListenPacket("udp", net.JoinHostPort(s.host, strconv.Itoa(s.port)))
 
 	return conn, err
 }

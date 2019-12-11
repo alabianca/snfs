@@ -43,7 +43,7 @@ func (r *ReceiverThread) Run(exit <-chan chan error) {
 
 		var startRead <-chan time.Time
 		// only start reading again if currently not reading
-		if readDone == nil && len(receivedMsgs) > maxMsgBuffer {
+		if readDone == nil && len(receivedMsgs) < maxMsgBuffer {
 			startRead = time.After(readDelay)
 		}
 
@@ -78,6 +78,7 @@ func (r *ReceiverThread) Run(exit <-chan chan error) {
 		case <-startRead:
 			readDone = make(chan readResult, 1)
 			go func() {
+				log.Println("Waiting for next message ...")
 				msg, raddr, err := r.conn.Next()
 				log.Printf("Received a message %d %s\n", msg.MultiplexKey, err)
 				readDone <- readResult{msg, raddr, err}

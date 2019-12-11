@@ -1,10 +1,16 @@
 package conn
 
 import (
+	"errors"
 	"github.com/alabianca/gokad"
 	"github.com/alabianca/snfs/snfs/kadnet/messages"
+	"log"
 	"net"
 	"sync"
+)
+
+const (
+	InvalidMessageTypeErr = "invalid Message"
 )
 
 type WriterFactory func(conn net.PacketConn) func(addr net.Addr) KadWriter
@@ -31,6 +37,7 @@ type writer struct {
 }
 
 func (w *writer) Write(p []byte) (int, error) {
+	log.Printf("Sending: %d bytes\n", len(p))
 	return w.write(p)
 }
 
@@ -46,7 +53,7 @@ func (w *writer) write(p []byte) (int, error) {
 
 		written+=n
 	}
-
+	log.Printf("Written %d bytes to %s\n", written, w.addr)
 	return written, nil
 }
 
@@ -65,6 +72,15 @@ func (c *conn) Close() error {
 }
 
 func (c *conn) Next() (messages.Message, net.Addr, error) {
+
+	key, err := c.readMultiplexKey()
+	if err != nil {
+		log.Printf("Error Reading Mux %s\n", err)
+		return messages.Message{}, nil, err
+	}
+
+	log.Printf("Received Message %d\n", key)
+
 	msg := make([]byte, gokad.MessageSize)
 	rlen, raddr, err := c.conn.ReadFrom(msg)
 	if err != nil {
@@ -77,6 +93,22 @@ func (c *conn) Next() (messages.Message, net.Addr, error) {
 	out, err := messages.Process(cpy)
 
 	return out, raddr, err
+}
+
+func (c *conn) readMultiplexKey() (messages.MessageType, error) {
+	firstByte := make([]byte, 1)
+	log.Println("Created space for mux key")
+	_, _, err := c.conn.ReadFrom(firstByte)
+	if err != nil {
+		return messages.MessageType(0), err
+	}
+
+	key := messages.MessageType(firstByte[0])
+	if !messages.IsValid(key) {
+		return messages.MessageType(0), errors.New(InvalidMessageTypeErr)
+	}
+
+	return key, nil
 }
 
 // WriterFactory ensures to return a thread safe writer

@@ -174,11 +174,22 @@ func ProcessMessage(msg *Message) KademliaMessage {
 	return out
 }
 
+func IsValid(msgType MessageType) bool {
+	return IsRequest(msgType) || IsResponse(msgType)
+}
+
 func IsResponse(msgType MessageType) bool {
 	return msgType == FindNodeRes ||
 		msgType == PingRes ||
 		msgType == FindValueRes ||
 		msgType == StoreRes
+}
+
+func IsRequest(msgType MessageType) bool {
+	return msgType == FindNodeReq ||
+		msgType == PingReq ||
+		msgType == FindValueReq ||
+		msgType == StoreReq
 }
 
 func SerializeID(id string) ([]byte, error) {
