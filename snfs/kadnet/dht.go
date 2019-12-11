@@ -1,6 +1,7 @@
 package kadnet
 
 import (
+	"github.com/alabianca/snfs/snfs/kadnet/buffers"
 	"log"
 	"net"
 	"sync"
@@ -45,6 +46,9 @@ func (dht *DHT) Bootstrap(port int, ip, idHex string) (*gokad.Contact, int, erro
 }
 
 func (dht *DHT) NodeLookup(rpc RPC, id *gokad.ID) {
+	buf := buffers.GetNodeReplyBuffer()
+	buf.Open()
+	defer buf.Close()
 	contacts := make([]gokad.Contact, 0)
 	alphaNodes := dht.getAlphaNodes(3, id)
 	strID := id.String()

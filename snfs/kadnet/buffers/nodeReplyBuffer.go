@@ -8,7 +8,8 @@ import (
 	"time"
 )
 
-const TimeoutErr = "Timeout Occured"
+const TimeoutErr = "timeout occured"
+const ClosedBufferErr = "closed buffer error"
 
 var nodeReplyBufferInstance *NodeReplyBuffer
 var onceRBuf sync.Once
@@ -76,6 +77,9 @@ func (n *NodeReplyBuffer) Put(c messages.Message) bool {
 }
 
 func (n *NodeReplyBuffer) GetMessage(id string) (messages.Message, error) {
+	if !n.IsOpen() {
+		return messages.Message{}, errors.New(ClosedBufferErr)
+	}
 	query := bufferQuery{id, make(chan messages.Message)}
 	n.subscribe <- query
 
