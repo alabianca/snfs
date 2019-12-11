@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"log"
 	"net"
 
 	"github.com/alabianca/snfs/util"
@@ -84,12 +85,13 @@ func GetMessageSize(x MessageType) int {
 
 // <-  1 Bytes    <- 20 Bytes  <- 20 Bytes       <- X Bytes  <- 20 Bytes
 //  MultiplexKey      SenderID    EchoedRandomId    Payload     RandomID
-func Process(raw []byte, mKey MessageType) (Message, error) {
+func Process(raw []byte) (Message, error) {
 	var message Message
-
+	mKey := MessageType(raw[0])
+	log.Printf("Processing %d %d\n", mKey, len(raw))
 	switch mKey {
 	case FindNodeReq:
-		processFindNodeRequest(&message, raw)
+		processFindNodeRequest(&message, raw[1:])
 	}
 
 	return message, nil

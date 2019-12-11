@@ -97,7 +97,6 @@ func (n *FindNodeRequest) Bytes() ([]byte, error) {
 		return nil, err
 	}
 
-	eid := make([]byte, 20)
 
 	pid, err := SerializeID(n.Payload)
 	if err != nil {
@@ -112,7 +111,6 @@ func (n *FindNodeRequest) Bytes() ([]byte, error) {
 	out := make([]byte, 0)
 	out = append(out, mkey...)
 	out = append(out, sid...)
-	out = append(out, eid...)
 	out = append(out, pid...)
 	out = append(out, rid...)
 

@@ -71,49 +71,33 @@ func (c *conn) Close() error {
 }
 
 func (c *conn) Next() (messages.Message, net.Addr, error) {
-
-	key, err := c.readMultiplexKey()
+	buf := make([]byte, messages.FindNodeResSize) // this is the largest possible message
+	n, r, err := c.read(buf)
 	if err != nil {
-		return messages.Message{}, nil, err
+		return messages.Message{}, r, err
 	}
 
-	return c.copyMessageBody(key)
+	m, err := messages.Process(buf[:n])
+
+	return m, r, err
+}
+
+func (c *conn) read(p []byte) (int, net.Addr, error) {
+	n, r, err := c.conn.ReadFrom(p)
+	if err != nil {
+		return n, r, err
+	}
+
+	muxKey := messages.MessageType(p[0])
+	if !messages.IsValid(muxKey) {
+		return n, r, errors.New(InvalidMessageTypeErr)
+	}
+
+	return n, r, err
 }
 
 
-func (c *conn) readMultiplexKey() (messages.MessageType, error) {
-	firstByte := make([]byte, 1)
 
-	_, _, err := c.conn.ReadFrom(firstByte)
-	if err != nil {
-		return messages.MessageType(0), err
-	}
-
-	key := messages.MessageType(firstByte[0])
-	if !messages.IsValid(key) {
-		log.Printf("Key %d\n", key)
-		return messages.MessageType(0), errors.New(InvalidMessageTypeErr)
-	}
-
-	return key, nil
-}
-
-func (c *conn) copyMessageBody(msgType messages.MessageType) (messages.Message, net.Addr, error) {
-	maxSize := messages.GetMessageSize(msgType)
-	buf := make([]byte, maxSize)
-	n, r, err := c.conn.ReadFrom(buf)
-	if err != nil {
-		return messages.Message{}, nil, err
-	}
-
-	m, err := messages.Process(buf[:n], msgType)
-	if err != nil {
-		return messages.Message{}, nil, err
-	}
-
-	return m, r, nil
-
-}
 
 // WriterFactory ensures to return a thread safe writer
 // KadWriter needs to be thread safe as we are writing to it potentially from multiple
