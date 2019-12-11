@@ -105,6 +105,7 @@ func (c *conn) readMultiplexKey() (messages.MessageType, error) {
 
 	key := messages.MessageType(firstByte[0])
 	if !messages.IsValid(key) {
+		log.Printf("Key %d\n", key)
 		return messages.MessageType(0), errors.New(InvalidMessageTypeErr)
 	}
 

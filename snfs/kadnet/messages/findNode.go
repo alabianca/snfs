@@ -110,6 +110,7 @@ func (n *FindNodeRequest) Bytes() ([]byte, error) {
 	}
 
 	out := make([]byte, 0)
+	out = append(out, mkey...)
 	out = append(out, sid...)
 	out = append(out, eid...)
 	out = append(out, pid...)
