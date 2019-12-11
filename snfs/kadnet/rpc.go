@@ -2,6 +2,7 @@ package kadnet
 
 import (
 	"github.com/alabianca/gokad"
+	"github.com/alabianca/snfs/snfs/kadnet/messages"
 	"net"
 )
 
@@ -9,7 +10,7 @@ const maxMsgBuffer = 100
 const ServiceName = "RPCManager"
 
 type readResult struct {
-	message Message
+	message messages.Message
 	remote  net.Addr
 	err     error
 }

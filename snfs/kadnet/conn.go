@@ -2,6 +2,7 @@ package kadnet
 
 import (
 	"github.com/alabianca/gokad"
+	"github.com/alabianca/snfs/snfs/kadnet/messages"
 	"net"
 	"sync"
 )
@@ -16,7 +17,7 @@ type KadConn interface {
 
 
 type KadReader interface {
-	Next() (Message, net.Addr, error)
+	Next() (messages.Message, net.Addr, error)
 }
 
 type KadWriter interface {
@@ -63,21 +64,24 @@ func (c *conn) Close() error {
 	return c.conn.Close()
 }
 
-func (c *conn) Next() (Message, net.Addr, error) {
+func (c *conn) Next() (messages.Message, net.Addr, error) {
 	msg := make([]byte, gokad.MessageSize)
 	rlen, raddr, err := c.conn.ReadFrom(msg)
 	if err != nil {
-		return Message{}, nil, err
+		return messages.Message{}, nil, err
 	}
 
 	cpy := make([]byte, rlen)
 	copy(cpy, msg[:rlen])
 
-	out, err := process(cpy)
+	out, err := messages.Process(cpy)
 
 	return out, raddr, err
 }
 
+// WriterFactory ensures to return a thread safe writer
+// KadWriter needs to be thread safe as we are writing to it potentially from multiple
+// goroutines.
 func (c *conn) WriterFactory() func(addr net.Addr) KadWriter {
 	mtx := new(sync.Mutex)
 	return func(addr net.Addr) KadWriter {

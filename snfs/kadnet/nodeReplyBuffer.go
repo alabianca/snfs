@@ -3,6 +3,7 @@ package kadnet
 import (
 	"errors"
 	"fmt"
+	"github.com/alabianca/snfs/snfs/kadnet/messages"
 	"sync"
 	"time"
 )
@@ -21,25 +22,25 @@ func GetNodeReplyBuffer() *NodeReplyBuffer {
 
 type bufferQuery struct {
 	id       string
-	response chan Message
+	response chan messages.Message
 }
 
 type NodeReplyBuffer struct {
-	messages    map[string]Message
+	messages    map[string]messages.Message
 	active      bool
 	waitTimeout time.Duration
 	// channels
-	newMessage chan Message
+	newMessage chan messages.Message
 	exit       chan bool
 	subscribe  chan bufferQuery
 }
 
 func newNodeReplyBuffer() *NodeReplyBuffer {
 	return &NodeReplyBuffer{
-		messages:    make(map[string]Message),
+		messages:    make(map[string]messages.Message),
 		active:      false,
 		waitTimeout: time.Second * 5,
-		newMessage:  make(chan Message),
+		newMessage:  make(chan messages.Message),
 		exit:        make(chan bool),
 		subscribe:   make(chan bufferQuery),
 	}
@@ -64,7 +65,7 @@ func (n *NodeReplyBuffer) IsOpen() bool {
 	return n.active
 }
 
-func (n *NodeReplyBuffer) Put(c Message) bool {
+func (n *NodeReplyBuffer) Put(c messages.Message) bool {
 	if !n.IsOpen() {
 		return false
 	}
@@ -74,20 +75,20 @@ func (n *NodeReplyBuffer) Put(c Message) bool {
 	return true
 }
 
-func (n *NodeReplyBuffer) GetMessage(id string) (Message, error) {
-	query := bufferQuery{id, make(chan Message)}
+func (n *NodeReplyBuffer) GetMessage(id string) (messages.Message, error) {
+	query := bufferQuery{id, make(chan messages.Message)}
 	n.subscribe <- query
 
 	select {
 	case <-time.After(n.waitTimeout):
-		return Message{}, errors.New(TimeoutErr)
+		return messages.Message{}, errors.New(TimeoutErr)
 	case m := <-query.response:
 		return m, nil
 	}
 }
 
 func (n *NodeReplyBuffer) accept() {
-	pending := make(map[string]chan Message)
+	pending := make(map[string]chan messages.Message)
 
 	for {
 
@@ -99,7 +100,7 @@ func (n *NodeReplyBuffer) accept() {
 			if ok {
 				c <- m
 			} else {
-				out := make(chan Message, 1)
+				out := make(chan messages.Message, 1)
 				pending[senderId] = out
 				out <- m
 
@@ -111,7 +112,7 @@ func (n *NodeReplyBuffer) accept() {
 				msg := <-c
 				sub.response <- msg
 			} else {
-				out := make(chan Message, 1)
+				out := make(chan messages.Message, 1)
 				pending[sub.id] = out
 			}
 

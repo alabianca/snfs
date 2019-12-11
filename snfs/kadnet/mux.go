@@ -1,18 +1,21 @@
 package kadnet
 
-import "net"
+import (
+	"github.com/alabianca/snfs/snfs/kadnet/messages"
+	"net"
+)
 
 const HandlerNotFoundErr = "Handler Not Found"
 
 type KadMux struct {
 	reader     KadReader
-	handlers map[MessageType]RpcHandler
+	handlers map[messages.MessageType]RpcHandler
 	dispatcher *Dispatcher
 	newWriterFunc func(addr net.Addr) KadWriter
 	// channels
 	dispatchRequest chan WorkRequest
-	onResponse   chan CompleteMessage
-	onRequest    chan CompleteMessage
+	onResponse   chan messages.CompleteMessage
+	onRequest    chan messages.CompleteMessage
 	stopReceiver chan chan error
 	stopReply    chan chan error
 	stopDispatcher chan bool
@@ -24,9 +27,9 @@ func NewMux() *KadMux {
 		reader:       nil,
 		dispatcher: NewDispatcher(10),
 		stopDispatcher: make(chan bool),
-		handlers:   make(map[MessageType]RpcHandler),
-		onRequest:  make(chan CompleteMessage),
-		onResponse: make(chan CompleteMessage),
+		handlers:   make(map[messages.MessageType]RpcHandler),
+		onRequest:  make(chan messages.CompleteMessage),
+		onResponse: make(chan messages.CompleteMessage),
 		exit:       make(chan error),
 	}
 }
@@ -101,7 +104,7 @@ func (k *KadMux) handleRequests() {
 	}
 }
 
-func (k *KadMux) HandleFunc(m MessageType, handler RpcHandler) {
+func (k *KadMux) HandleFunc(m messages.MessageType, handler RpcHandler) {
 	k.handlers[m] = handler
 }
 

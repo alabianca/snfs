@@ -1,17 +1,18 @@
 package kadnet
 
 import (
+	"github.com/alabianca/snfs/snfs/kadnet/messages"
 	"log"
 	"time"
 )
 
 type ReceiverThread struct {
-	fanoutReply  chan<- CompleteMessage
-	fanoutRequest chan<- CompleteMessage
+	fanoutReply  chan<- messages.CompleteMessage
+	fanoutRequest chan<- messages.CompleteMessage
 	conn         KadReader
 }
 
-func NewReceiverThread(res, req chan<- CompleteMessage, conn KadReader) *ReceiverThread {
+func NewReceiverThread(res, req chan<- messages.CompleteMessage, conn KadReader) *ReceiverThread {
 	return &ReceiverThread{
 		fanoutReply:  res,
 		fanoutRequest: req,
@@ -37,12 +38,12 @@ func (r *ReceiverThread) Run(exit <-chan chan error) {
 		}
 
 		// fanout
-		var fanout chan<- CompleteMessage
-		var nextMessage CompleteMessage
+		var fanout chan<- messages.CompleteMessage
+		var nextMessage messages.CompleteMessage
 		if len(receivedMsgs) > 0 {
-			nextMessage = CompleteMessage{receivedMsgs[0].message, receivedMsgs[0].remote}
+			nextMessage = messages.CompleteMessage{receivedMsgs[0].message, receivedMsgs[0].remote}
 
-			if isResponse(nextMessage.message.MultiplexKey) {
+			if messages.IsResponse(nextMessage.Message.MultiplexKey) {
 				fanout = r.fanoutReply
 			} else {
 				fanout = r.fanoutRequest
@@ -73,7 +74,7 @@ func (r *ReceiverThread) Run(exit <-chan chan error) {
 			}()
 
 		case fanout <- nextMessage:
-			log.Printf("Fanout Received KademliaMessage %d\n", nextMessage.message.MultiplexKey)
+			log.Printf("Fanout Received KademliaMessage %d\n", nextMessage.Message.MultiplexKey)
 			receivedMsgs = receivedMsgs[1:]
 		}
 

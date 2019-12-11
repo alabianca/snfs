@@ -1,6 +1,10 @@
 package kadnet
 
-import "net"
+import (
+	"github.com/alabianca/snfs/snfs/kadnet/messages"
+	"log"
+	"net"
+)
 
 type Server struct {
 	dht *DHT
@@ -58,7 +62,7 @@ func (s *Server) listen() (*net.UDPConn, error) {
 }
 
 func (s *Server) registerRequestHandlers() {
-	s.mux.HandleFunc(FindNodeReq, s.onFindNode())
+	s.mux.HandleFunc(messages.FindNodeReq, s.onFindNode())
 }
 
 func (s *Server) handleClientRequests(nwf func(addr net.Addr) KadWriter) {
@@ -69,7 +73,13 @@ func (s *Server) handleClientRequests(nwf func(addr net.Addr) KadWriter) {
 }
 
 func (s *Server) doRequest(req *Request, w KadWriter) {
+	data, err := req.Body.Bytes()
+	if err != nil {
+		log.Printf("Error in doRequest %s\n", err)
+		return
+	}
 
+	w.Write(data)
 }
 
 

@@ -2,20 +2,21 @@ package kadnet
 
 import (
 	"github.com/alabianca/gokad"
+	"github.com/alabianca/snfs/snfs/kadnet/messages"
 	"net"
 )
 
 type RpcHandler func(conn KadWriter, req *Request)
 
 type ReplyThread struct {
-	onResponse    <-chan CompleteMessage
-	onRequest     <-chan CompleteMessage
+	onResponse    <-chan messages.CompleteMessage
+	onRequest     <-chan messages.CompleteMessage
 	newWriterFunc func(addr net.Addr) KadWriter
 	// buffers
 	nodeReplyBuffer *NodeReplyBuffer
 }
 
-func NewReplyThread(res, req <-chan CompleteMessage, nwf func(addr net.Addr) KadWriter) *ReplyThread {
+func NewReplyThread(res, req <-chan messages.CompleteMessage, nwf func(addr net.Addr) KadWriter) *ReplyThread {
 	return &ReplyThread{
 		onRequest:       req,
 		onResponse:      res,
@@ -25,7 +26,7 @@ func NewReplyThread(res, req <-chan CompleteMessage, nwf func(addr net.Addr) Kad
 }
 
 func (r *ReplyThread) Run(newWork chan<- WorkRequest, exit <-chan chan error) {
-	queue := make([]CompleteMessage, 0)
+	queue := make([]messages.CompleteMessage, 0)
 
 	for {
 
@@ -44,7 +45,7 @@ func (r *ReplyThread) Run(newWork chan<- WorkRequest, exit <-chan chan error) {
 
 		select {
 		case msg := <-r.onResponse:
-			r.tempStoreMsg(msg.message)
+			r.tempStoreMsg(msg.Message)
 		case out := <-exit:
 			out <- nil
 			return
@@ -58,20 +59,20 @@ func (r *ReplyThread) Run(newWork chan<- WorkRequest, exit <-chan chan error) {
 	}
 }
 
-func (r *ReplyThread) tempStoreMsg(km Message) {
+func (r *ReplyThread) tempStoreMsg(km messages.Message) {
 	switch km.MultiplexKey {
-	case FindNodeRes:
+	case messages.FindNodeRes:
 		r.nodeReplyBuffer.Put(km)
 	}
 }
 
-func (r *ReplyThread) newWorkRequest(msg CompleteMessage) (WorkRequest, error) {
-	km := processMessage(&msg.message)
-	id, err := gokad.From(toStringId(msg.message.SenderID))
+func (r *ReplyThread) newWorkRequest(msg messages.CompleteMessage) (WorkRequest, error) {
+	km := messages.ProcessMessage(&msg.Message)
+	id, err := gokad.From(messages.ToStringId(msg.Message.SenderID))
 	if err != nil {
 		return WorkRequest{}, err
 	}
-	udpAddr, err := net.ResolveUDPAddr("udp", msg.sender.String())
+	udpAddr, err := net.ResolveUDPAddr("udp", msg.Sender.String())
 	if err != nil {
 		return WorkRequest{}, err
 	}
@@ -85,7 +86,7 @@ func (r *ReplyThread) newWorkRequest(msg CompleteMessage) (WorkRequest, error) {
 	req := NewRequest(contact, km)
 
 	wReq := WorkRequest{
-		ArgConn:    r.newWriterFunc(msg.sender),
+		ArgConn:    r.newWriterFunc(msg.Sender),
 		ArgRequest: req,
 	}
 

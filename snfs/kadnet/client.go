@@ -3,6 +3,7 @@ package kadnet
 import (
 	"errors"
 	"github.com/alabianca/gokad"
+	"github.com/alabianca/snfs/snfs/kadnet/messages"
 )
 
 const WrongResponseTypeErr = "Wrong Response"
@@ -21,7 +22,7 @@ func (c *Client) FindNode(contact gokad.Contact, lookupId string) ([]gokad.Conta
 }
 
 func (c *Client) findNode(contact gokad.Contact, lookupId string) ([]gokad.Contact, error) {
-	req := NewRequest(contact, newFindNodeRequest(c.id, "", lookupId))
+	req := NewRequest(contact, messages.NewFindNodeRequest(c.id, "", lookupId))
 
 	res, err := c.do(req)
 
@@ -30,18 +31,18 @@ func (c *Client) findNode(contact gokad.Contact, lookupId string) ([]gokad.Conta
 		return nil, err
 	}
 
-	if res.MultiplexKey != FindNodeRes {
+	if res.MultiplexKey != messages.FindNodeRes {
 		return nil, errors.New(WrongResponseTypeErr)
 	}
 
-	var nodeReply FindNodeResponse
-	toKademliaMessage(res, &nodeReply)
+	var nodeReply messages.FindNodeResponse
+	messages.ToKademliaMessage(res, &nodeReply)
 
-	return nodeReply.payload, nil
+	return nodeReply.Payload, nil
 
 }
 
-func (c *Client) do(req *Request) (*Message, error) {
+func (c *Client) do(req *Request) (*messages.Message, error) {
 	c.doReq <- req
 	buf := GetNodeReplyBuffer()
 	res, err := buf.GetMessage(req.Host())
