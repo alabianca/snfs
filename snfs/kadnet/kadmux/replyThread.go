@@ -1,26 +1,27 @@
-package kadnet
+package kadmux
 
 import (
 	"github.com/alabianca/gokad"
+	"github.com/alabianca/snfs/snfs/kadnet/buffers"
+	"github.com/alabianca/snfs/snfs/kadnet/conn"
 	"github.com/alabianca/snfs/snfs/kadnet/messages"
+	"github.com/alabianca/snfs/snfs/kadnet/request"
 	"net"
 )
-
-type RpcHandler func(conn KadWriter, req *Request)
 
 type ReplyThread struct {
 	onResponse    <-chan messages.CompleteMessage
 	onRequest     <-chan messages.CompleteMessage
-	newWriterFunc func(addr net.Addr) KadWriter
+	newWriterFunc func(addr net.Addr) conn.KadWriter
 	// buffers
-	nodeReplyBuffer *NodeReplyBuffer
+	nodeReplyBuffer *buffers.NodeReplyBuffer
 }
 
-func NewReplyThread(res, req <-chan messages.CompleteMessage, nwf func(addr net.Addr) KadWriter) *ReplyThread {
+func NewReplyThread(res, req <-chan messages.CompleteMessage, nwf func(addr net.Addr) conn.KadWriter) *ReplyThread {
 	return &ReplyThread{
 		onRequest:       req,
 		onResponse:      res,
-		nodeReplyBuffer: GetNodeReplyBuffer(),
+		nodeReplyBuffer: buffers.GetNodeReplyBuffer(),
 		newWriterFunc:   nwf,
 	}
 }
@@ -83,7 +84,7 @@ func (r *ReplyThread) newWorkRequest(msg messages.CompleteMessage) (WorkRequest,
 		Port: udpAddr.Port,
 	}
 
-	req := NewRequest(contact, km)
+	req := request.New(contact, km)
 
 	wReq := WorkRequest{
 		ArgConn:    r.newWriterFunc(msg.Sender),

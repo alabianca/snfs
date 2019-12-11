@@ -1,13 +1,15 @@
-package kadnet
+package kadmux
 
 import (
+	"github.com/alabianca/snfs/snfs/kadnet/conn"
+	"github.com/alabianca/snfs/snfs/kadnet/request"
 	"log"
 )
 
 type WorkRequest struct {
-	Handler RpcHandler
-	ArgConn KadWriter
-	ArgRequest *Request
+	Handler    RpcHandler
+	ArgConn    conn.KadWriter
+	ArgRequest *request.Request
 }
 
 type Worker struct {

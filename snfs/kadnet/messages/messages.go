@@ -85,17 +85,17 @@ func ToKademliaMessage(msg *Message, km KademliaMessage) {
 	switch v := km.(type) {
 	case *FindNodeRequest:
 		*v = FindNodeRequest{
-			RandomID:     toStringId(msg.RandomID),
-			EchoRandomID: toStringId(msg.EchoedRandomID),
-			SenderID:     toStringId(msg.SenderID),
-			Payload:      toStringId(msg.Payload),
+			RandomID:     ToStringId(msg.RandomID),
+			EchoRandomID: ToStringId(msg.EchoedRandomID),
+			SenderID:     ToStringId(msg.SenderID),
+			Payload:      ToStringId(msg.Payload),
 		}
 	case *FindNodeResponse:
 		*v = FindNodeResponse{
-			SenderID:     toStringId(msg.SenderID),
-			EchoRandomID: toStringId(msg.EchoedRandomID),
+			SenderID:     ToStringId(msg.SenderID),
+			EchoRandomID: ToStringId(msg.EchoedRandomID),
 			Payload:      processContacts(msg.Payload),
-			RandomID:     toStringId(msg.RandomID),
+			RandomID:     ToStringId(msg.RandomID),
 		}
 	}
 
@@ -142,7 +142,7 @@ func toContact(b []byte) (gokad.Contact, error) {
 	}
 
 	port := binary.BigEndian.Uint16(portBytes)
-	id, err := gokad.From(toStringId(idBytes))
+	id, err := gokad.From(ToStringId(idBytes))
 	if err != nil {
 		return gokad.Contact{}, errors.New("Invalid ID")
 	}

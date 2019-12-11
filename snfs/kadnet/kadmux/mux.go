@@ -1,40 +1,44 @@
-package kadnet
+package kadmux
 
 import (
+	"github.com/alabianca/snfs/snfs/kadnet/conn"
 	"github.com/alabianca/snfs/snfs/kadnet/messages"
+	"github.com/alabianca/snfs/snfs/kadnet/request"
 	"net"
 )
 
 const HandlerNotFoundErr = "Handler Not Found"
 
+type RpcHandler func(conn conn.KadWriter, req *request.Request)
+
 type KadMux struct {
-	reader     KadReader
-	handlers map[messages.MessageType]RpcHandler
-	dispatcher *Dispatcher
-	newWriterFunc func(addr net.Addr) KadWriter
+	reader        conn.KadReader
+	handlers      map[messages.MessageType]RpcHandler
+	dispatcher    *Dispatcher
+	newWriterFunc func(addr net.Addr) conn.KadWriter
 	// channels
 	dispatchRequest chan WorkRequest
-	onResponse   chan messages.CompleteMessage
-	onRequest    chan messages.CompleteMessage
-	stopReceiver chan chan error
-	stopReply    chan chan error
-	stopDispatcher chan bool
-	exit         chan error
+	onResponse      chan messages.CompleteMessage
+	onRequest       chan messages.CompleteMessage
+	stopReceiver    chan chan error
+	stopReply       chan chan error
+	stopDispatcher  chan bool
+	exit            chan error
 }
 
 func NewMux() *KadMux {
 	return &KadMux{
-		reader:       nil,
-		dispatcher: NewDispatcher(10),
+		reader:         nil,
+		dispatcher:     NewDispatcher(10),
 		stopDispatcher: make(chan bool),
-		handlers:   make(map[messages.MessageType]RpcHandler),
-		onRequest:  make(chan messages.CompleteMessage),
-		onResponse: make(chan messages.CompleteMessage),
-		exit:       make(chan error),
+		handlers:       make(map[messages.MessageType]RpcHandler),
+		onRequest:      make(chan messages.CompleteMessage),
+		onResponse:     make(chan messages.CompleteMessage),
+		exit:           make(chan error),
 	}
 }
 
-func (k *KadMux) shutdown() {
+func (k *KadMux) Shutdown() {
 	if k.stopReply != nil && k.stopReceiver != nil {
 		stopReply := make(chan error)
 		stopRec := make(chan error)
@@ -48,7 +52,7 @@ func (k *KadMux) shutdown() {
 	}
 }
 
-func (k *KadMux) start(reader KadReader, nwf func(addr net.Addr) KadWriter) error {
+func (k *KadMux) Start(reader conn.KadReader, nwf func(addr net.Addr) conn.KadWriter) error {
 	k.reader = reader
 	k.startDispatcher(10) // @todo get max workers from somewhere else
 	k.newWriterFunc = nwf
@@ -61,7 +65,6 @@ func (k *KadMux) start(reader KadReader, nwf func(addr net.Addr) KadWriter) erro
 	go k.handleRequests()
 	go receiver.Run(k.stopReceiver)
 	go reply.Run(k.dispatchRequest, k.stopReply)
-
 
 	return <-k.exit
 }
@@ -79,7 +82,7 @@ func (k *KadMux) handleRequests() {
 	queue := make([]*WorkRequest, 0)
 	for {
 
-		var fanout chan<-WorkRequest
+		var fanout chan<- WorkRequest
 		var next WorkRequest
 		if len(queue) > 0 {
 			fanout = k.dispatcher.QueueWork()
@@ -92,7 +95,7 @@ func (k *KadMux) handleRequests() {
 			return
 		case fanout <- next:
 			queue = queue[1:]
-		case work := <- k.dispatchRequest:
+		case work := <-k.dispatchRequest:
 			handler, ok := k.handlers[work.ArgRequest.MultiplexKey()]
 			if !ok {
 				continue
@@ -107,6 +110,3 @@ func (k *KadMux) handleRequests() {
 func (k *KadMux) HandleFunc(m messages.MessageType, handler RpcHandler) {
 	k.handlers[m] = handler
 }
-
-
-

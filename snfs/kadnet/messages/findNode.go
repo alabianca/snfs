@@ -18,17 +18,17 @@ func (n *FindNodeResponse) MultiplexKey() MessageType {
 func (n *FindNodeResponse) Bytes() ([]byte, error) {
 	mkey := make([]byte, 1)
 	mkey[0] = byte(FindNodeRes)
-	sid, err := serializeID(n.SenderID)
+	sid, err := SerializeID(n.SenderID)
 	if err != nil {
 		return nil, err
 	}
 
-	eid, err := serializeID(n.EchoRandomID)
+	eid, err := SerializeID(n.EchoRandomID)
 	if err != nil {
 		return nil, err
 	}
 
-	rid, err := serializeID(n.RandomID)
+	rid, err := SerializeID(n.RandomID)
 	if err != nil {
 		return nil, err
 	}
@@ -92,19 +92,19 @@ func (n *FindNodeRequest) Bytes() ([]byte, error) {
 	mkey := make([]byte, 1)
 	mkey[0] = byte(FindNodeReq)
 
-	sid, err := serializeID(n.SenderID)
+	sid, err := SerializeID(n.SenderID)
 	if err != nil {
 		return nil, err
 	}
 
 	eid := make([]byte, 20)
 
-	pid, err := serializeID(n.Payload)
+	pid, err := SerializeID(n.Payload)
 	if err != nil {
 		return nil, nil
 	}
 
-	rid, err := serializeID(n.RandomID)
+	rid, err := SerializeID(n.RandomID)
 	if err != nil {
 		return nil, nil
 	}

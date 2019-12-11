@@ -246,7 +246,7 @@ func getFileController(storage *fs.Manager) http.HandlerFunc {
 	}
 }
 
-func bootstrapController(rpc kadnet.RPCManager) http.HandlerFunc {
+func bootstrapController(rpc *kadnet.RpcManager) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
 		var br BootstrapRequest
 

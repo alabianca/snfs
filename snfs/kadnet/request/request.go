@@ -1,4 +1,4 @@
-package kadnet
+package request
 
 import (
 	"github.com/alabianca/gokad"
@@ -12,7 +12,7 @@ type Request struct {
 	Body    messages.KademliaMessage
 }
 
-func NewRequest(c gokad.Contact, body messages.KademliaMessage) *Request {
+func New(c gokad.Contact, body messages.KademliaMessage) *Request {
 	return &Request{
 		Contact: c,
 		Body:    body,

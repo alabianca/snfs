@@ -2,23 +2,10 @@ package kadnet
 
 import (
 	"github.com/alabianca/gokad"
-	"github.com/alabianca/snfs/snfs/kadnet/messages"
-	"net"
 )
 
-const maxMsgBuffer = 100
+
 const ServiceName = "RPCManager"
-
-type readResult struct {
-	message messages.Message
-	remote  net.Addr
-	err     error
-}
-
-type RPCManager interface {
-	Manager
-	RPC
-}
 
 type Manager interface {
 	Name() string
@@ -28,19 +15,19 @@ type Manager interface {
 }
 
 type RPC interface {
-	Bootstrap(port int, ip, idHex string)
+	FindNode(c gokad.Contact, id string) ([]gokad.Contact, error)
 }
 
-type rpcManager struct {
+type RpcManager struct {
 	dht    *DHT
 	server *Server
 }
 
-func NewRPCManager(address string, port int) RPCManager {
+func NewRPCManager(address string, port int) *RpcManager {
 
 	server := NewServer(GetDHT(), address, port)
 
-	return &rpcManager{
+	return &RpcManager{
 		dht:    GetDHT(),
 		server: server,
 	}
@@ -63,7 +50,8 @@ func NewRPCManager(address string, port int) RPCManager {
 @Source: Implementation of the Kademlia Hash Table by Bruno Spori Semester Thesis
 https://pub.tik.ee.ethz.ch/students/2006-So/SA-2006-19.pdf
 **/
-func (rpc *rpcManager) Bootstrap(port int, ip, idHex string) {
+func (rpc *RpcManager) Bootstrap(port int, ip, idHex string) {
+	// 1. Insert gateway into k-bucket
 	_, _, err := rpc.dht.Bootstrap(port, ip, idHex)
 	// at capacity means we ping the head to see if it is still active. at this point contact is not inserted
 	// c is the head
@@ -75,25 +63,31 @@ func (rpc *rpcManager) Bootstrap(port int, ip, idHex string) {
 	}
 
 	// start node lookup for own id
-	//ownID := rpc.dht.Table.ID
+	ownID := rpc.dht.Table.ID
+	rpc.bootstrap(ownID)
 	//nlr := newFindNodeRequest(ownID.String(), "", ownID.String())
 	//rpc.onRequest <- CompleteMessage{nlr, nil}
 
+}
+
+func (rpc *RpcManager) bootstrap(id *gokad.ID) {
+	client := rpc.server.NewClient()
+	rpc.dht.NodeLookup(client, id)
 }
 
 // Manager starts here
 
 // Service interface ID, Name, Run, Shutdown
 
-func (rpc *rpcManager) ID() string {
+func (rpc *RpcManager) ID() string {
 	return rpc.dht.Table.ID.String()
 }
 
-func (rpc *rpcManager) Name() string {
+func (rpc *RpcManager) Name() string {
 	return ServiceName
 }
 
-func (rpc *rpcManager) Run() error {
+func (rpc *RpcManager) Run() error {
 
 	if err := rpc.server.Listen(); err != nil {
 		return err
@@ -102,7 +96,7 @@ func (rpc *rpcManager) Run() error {
 	return nil
 }
 
-func (rpc *rpcManager) Shutdown() error {
+func (rpc *RpcManager) Shutdown() error {
 
 	rpc.server.Shutdown()
 

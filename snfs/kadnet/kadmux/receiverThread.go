@@ -1,18 +1,28 @@
-package kadnet
+package kadmux
 
 import (
+	conn2 "github.com/alabianca/snfs/snfs/kadnet/conn"
 	"github.com/alabianca/snfs/snfs/kadnet/messages"
 	"log"
+	"net"
 	"time"
 )
 
-type ReceiverThread struct {
-	fanoutReply  chan<- messages.CompleteMessage
-	fanoutRequest chan<- messages.CompleteMessage
-	conn         KadReader
+const maxMsgBuffer = 100
+
+type readResult struct {
+	message messages.Message
+	remote  net.Addr
+	err     error
 }
 
-func NewReceiverThread(res, req chan<- messages.CompleteMessage, conn KadReader) *ReceiverThread {
+type ReceiverThread struct {
+	fanoutReply   chan<- messages.CompleteMessage
+	fanoutRequest chan<- messages.CompleteMessage
+	conn          conn2.KadReader
+}
+
+func NewReceiverThread(res, req chan<- messages.CompleteMessage, conn conn2.KadReader) *ReceiverThread {
 	return &ReceiverThread{
 		fanoutReply:  res,
 		fanoutRequest: req,

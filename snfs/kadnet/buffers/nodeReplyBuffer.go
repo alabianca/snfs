@@ -1,4 +1,4 @@
-package kadnet
+package buffers
 
 import (
 	"errors"

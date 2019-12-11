@@ -1,6 +1,7 @@
 package kadnet
 
 import (
+	"log"
 	"net"
 	"sync"
 
@@ -41,6 +42,30 @@ func (dht *DHT) Bootstrap(port int, ip, idHex string) (*gokad.Contact, int, erro
 	dht.mtx.Lock()
 	defer dht.mtx.Unlock()
 	return dht.Table.Bootstrap(port, net.ParseIP(ip), idHex)
+}
+
+func (dht *DHT) NodeLookup(rpc RPC, id *gokad.ID) {
+	contacts := make([]gokad.Contact, 0)
+	alphaNodes := dht.getAlphaNodes(3, id)
+	strID := id.String()
+
+	for _, c := range alphaNodes {
+		go func(contact gokad.Contact) {
+			log.Printf("Sending FindNode Rpc to %s\n", c)
+			res, err := rpc.FindNode(contact, strID)
+			if err == nil {
+				contacts = append(contacts, res...)
+			} else {
+				log.Printf("Error FindNode %s\n", err)
+			}
+		}(c)
+	}
+}
+
+func (dht *DHT) getAlphaNodes(alpha int, id *gokad.ID) []gokad.Contact {
+	dht.mtx.Lock()
+	defer dht.mtx.Unlock()
+	return dht.Table.GetAlphaNodes(alpha, *id)
 }
 
 

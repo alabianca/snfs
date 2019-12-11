@@ -1,4 +1,4 @@
-package kadnet
+package conn
 
 import (
 	"github.com/alabianca/gokad"

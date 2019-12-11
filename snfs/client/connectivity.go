@@ -24,12 +24,12 @@ type ConnectivityService struct {
 	discovery  *discovery.Manager
 	httpServer *http.Server
 	storage    *fs.Manager
-	rpc        kadnet.RPCManager
+	rpc        *kadnet.RpcManager
 	id         []byte
 	name       string
 }
 
-func NewConnectivityService(dManager *discovery.Manager, storage *fs.Manager, rpc kadnet.RPCManager) *ConnectivityService {
+func NewConnectivityService(dManager *discovery.Manager, storage *fs.Manager, rpc *kadnet.RpcManager) *ConnectivityService {
 
 	c := &ConnectivityService{
 		discovery: dManager,

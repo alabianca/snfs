@@ -1,6 +1,8 @@
-package kadnet
+package kadmux
 
-import "log"
+import (
+	"log"
+)
 
 type Dispatcher struct {
 	newWork           chan WorkRequest

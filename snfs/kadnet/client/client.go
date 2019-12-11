@@ -1,28 +1,27 @@
-package kadnet
+package client
 
 import (
 	"errors"
 	"github.com/alabianca/gokad"
+	"github.com/alabianca/snfs/snfs/kadnet/buffers"
 	"github.com/alabianca/snfs/snfs/kadnet/messages"
+	"github.com/alabianca/snfs/snfs/kadnet/request"
 )
 
 const WrongResponseTypeErr = "Wrong Response"
 
 type Client struct {
-	id string
-	doReq chan<- *Request
+	ID string
+	DoReq chan<- *request.Request
 }
 
 func (c *Client) FindNode(contact gokad.Contact, lookupId string) ([]gokad.Contact, error) {
 	defer c.sendPingReply(contact)
 	return c.findNode(contact, lookupId)
-
-
-
 }
 
 func (c *Client) findNode(contact gokad.Contact, lookupId string) ([]gokad.Contact, error) {
-	req := NewRequest(contact, messages.NewFindNodeRequest(c.id, "", lookupId))
+	req := request.New(contact, messages.NewFindNodeRequest(c.ID, "", lookupId))
 
 	res, err := c.do(req)
 
@@ -42,9 +41,9 @@ func (c *Client) findNode(contact gokad.Contact, lookupId string) ([]gokad.Conta
 
 }
 
-func (c *Client) do(req *Request) (*messages.Message, error) {
-	c.doReq <- req
-	buf := GetNodeReplyBuffer()
+func (c *Client) do(req *request.Request) (*messages.Message, error) {
+	c.DoReq <- req
+	buf := buffers.GetNodeReplyBuffer()
 	res, err := buf.GetMessage(req.Host())
 
 	return &res, err
