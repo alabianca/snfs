@@ -99,7 +99,7 @@ func Process(raw []byte) (Message, error) {
 
 func processFindNodeRequest(m *Message, p []byte) error {
 	// account for the multiplex key not to be there at this point
-	if len(p) - 1 != FindNodeReqSize {
+	if len(p) != FindNodeReqSize - 1{
 		return errors.New(ErrNoMatchMessageSize)
 	}
 	offsetSender := 0

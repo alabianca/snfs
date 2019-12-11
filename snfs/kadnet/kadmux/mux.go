@@ -4,6 +4,7 @@ import (
 	"github.com/alabianca/snfs/snfs/kadnet/conn"
 	"github.com/alabianca/snfs/snfs/kadnet/messages"
 	"github.com/alabianca/snfs/snfs/kadnet/request"
+	"log"
 	"net"
 )
 
@@ -28,13 +29,14 @@ type KadMux struct {
 
 func NewMux() *KadMux {
 	return &KadMux{
-		reader:         nil,
-		dispatcher:     NewDispatcher(10),
-		stopDispatcher: make(chan bool),
-		handlers:       make(map[messages.MessageType]RpcHandler),
-		onRequest:      make(chan messages.CompleteMessage),
-		onResponse:     make(chan messages.CompleteMessage),
-		exit:           make(chan error),
+		reader:          nil,
+		dispatcher:      NewDispatcher(10),
+		stopDispatcher:  make(chan bool),
+		dispatchRequest: make(chan WorkRequest),
+		handlers:        make(map[messages.MessageType]RpcHandler),
+		onRequest:       make(chan messages.CompleteMessage),
+		onResponse:      make(chan messages.CompleteMessage),
+		exit:            make(chan error),
 	}
 }
 
@@ -100,7 +102,7 @@ func (k *KadMux) handleRequests() {
 			if !ok {
 				continue
 			}
-
+			log.Println("Qeuueing Handler %d\n", work.ArgRequest.MultiplexKey())
 			work.Handler = handler
 			queue = append(queue, &work)
 		}
