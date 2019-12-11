@@ -22,6 +22,7 @@ type KademliaMessage interface {
 }
 
 const (
+	// Message Types
 	NodeLookup   = MessageType(30)
 	FindNodeReq  = MessageType(20)
 	FindNodeRes  = MessageType(21)
@@ -31,6 +32,15 @@ const (
 	FindValueRes = MessageType(25)
 	StoreReq     = MessageType(26)
 	StoreRes     = MessageType(27)
+	// Message Sizes
+	PingReqSize = 41
+	PingResSize = 41
+	PingReqResSize = 61
+	FindNodeReqSize = 61
+	FindValueReqSize = 61
+	StoreReqSize = 67
+	FindNodeResSize = 581
+	FindValueResSize = 201 // Note: Assumes there are always k values in the payload
 )
 
 // Errors
@@ -49,35 +59,62 @@ type Message struct {
 	RandomID       []byte
 }
 
-// <-  1 Bytes    <- 20 Bytes  <- 20 Bytes       <- X Bytes  <- 20 Bytes
-//  MultiplexKey      SenderID    EchoedRandomId    Payload     RandomID
-func Process(raw []byte) (Message, error) {
-	length := len(raw)
-	if length != gokad.MessageSize {
-		return Message{}, errors.New(ErrNoMatchMessageSize)
+func GetMessageSize(x MessageType) int {
+	var size int
+	switch x {
+	case FindNodeReq:
+		size = FindNodeReqSize
+	case FindNodeRes:
+		size = FindNodeResSize
+	case FindValueReq:
+		size = FindValueReqSize
+	case FindValueRes:
+		size = FindValueResSize
+	case PingReq:
+		size = PingReqSize
+	case PingRes:
+		size = PingResSize
+	case StoreReq:
+		size = StoreReqSize
+
 	}
 
-	endOfKey := 1
-	endOfSender := 21
-	endOfEcho := 41
-	endOfRandom := length
-	endOfPayload := endOfRandom - 20
+	return size
+}
 
-	mkey := MessageType(raw[:endOfKey][0])
-	senderID := raw[endOfKey:endOfSender]
-	echoR := raw[endOfSender:endOfEcho]
-	payload := raw[endOfEcho:endOfEcho]
-	randomID := raw[endOfPayload:]
+// <-  1 Bytes    <- 20 Bytes  <- 20 Bytes       <- X Bytes  <- 20 Bytes
+//  MultiplexKey      SenderID    EchoedRandomId    Payload     RandomID
+func Process(raw []byte, mKey MessageType) (Message, error) {
+	var message Message
 
-	message := Message{
-		MultiplexKey:   mkey,
-		SenderID:       senderID,
-		EchoedRandomID: echoR,
-		Payload:        payload,
-		RandomID:       randomID,
+	switch mKey {
+	case FindNodeReq:
+		processFindNodeRequest(&message, raw)
 	}
 
 	return message, nil
+}
+
+func processFindNodeRequest(m *Message, p []byte) error {
+	// account for the multiplex key not to be there at this point
+	if len(p) - 1 != FindNodeReqSize {
+		return errors.New(ErrNoMatchMessageSize)
+	}
+	offsetSender := 0
+	offsetLookupId := 20
+	offsetRandomId := 40
+
+	m.MultiplexKey = FindNodeReq
+	m.SenderID = p[offsetSender:offsetLookupId]
+	m.Payload = p[offsetLookupId:offsetRandomId]
+	m.RandomID = p[offsetRandomId:len(p)]
+
+	return nil
+
+}
+
+func processFindNodeResponse(m *Message, p []byte) error {
+	return nil
 }
 
 func ToKademliaMessage(msg *Message, km KademliaMessage) {

@@ -58,10 +58,6 @@ func (s *Server) NewClient() *client.Client {
 }
 
 func (s *Server) listen() (net.PacketConn, error) {
-	//conn, err := net.ListenUDP("udp", &net.UDPAddr{
-	//	IP:   net.ParseIP(s.host),
-	//	Port: s.port,
-	//})
 
 	conn, err := net.ListenPacket("udp", net.JoinHostPort(s.host, strconv.Itoa(s.port)))
 
@@ -93,6 +89,6 @@ func (s *Server) doRequest(req *request.Request, w conn.KadWriter) {
 // RPC Handlers
 func (s *Server) onFindNode() kadmux.RpcHandler {
 	return func(conn conn.KadWriter, req *request.Request) {
-
+		log.Printf("Recieved a find node request from %s\n", req.Host())
 	}
 }

@@ -2,7 +2,6 @@ package conn
 
 import (
 	"errors"
-	"github.com/alabianca/gokad"
 	"github.com/alabianca/snfs/snfs/kadnet/messages"
 	"log"
 	"net"
@@ -75,29 +74,16 @@ func (c *conn) Next() (messages.Message, net.Addr, error) {
 
 	key, err := c.readMultiplexKey()
 	if err != nil {
-		log.Printf("Error Reading Mux %s\n", err)
 		return messages.Message{}, nil, err
 	}
 
-	log.Printf("Received Message %d\n", key)
-
-	msg := make([]byte, gokad.MessageSize)
-	rlen, raddr, err := c.conn.ReadFrom(msg)
-	if err != nil {
-		return messages.Message{}, nil, err
-	}
-
-	cpy := make([]byte, rlen)
-	copy(cpy, msg[:rlen])
-
-	out, err := messages.Process(cpy)
-
-	return out, raddr, err
+	return c.copyMessageBody(key)
 }
+
 
 func (c *conn) readMultiplexKey() (messages.MessageType, error) {
 	firstByte := make([]byte, 1)
-	log.Println("Created space for mux key")
+
 	_, _, err := c.conn.ReadFrom(firstByte)
 	if err != nil {
 		return messages.MessageType(0), err
@@ -110,6 +96,23 @@ func (c *conn) readMultiplexKey() (messages.MessageType, error) {
 	}
 
 	return key, nil
+}
+
+func (c *conn) copyMessageBody(msgType messages.MessageType) (messages.Message, net.Addr, error) {
+	maxSize := messages.GetMessageSize(msgType)
+	buf := make([]byte, maxSize)
+	n, r, err := c.conn.ReadFrom(buf)
+	if err != nil {
+		return messages.Message{}, nil, err
+	}
+
+	m, err := messages.Process(buf[:n], msgType)
+	if err != nil {
+		return messages.Message{}, nil, err
+	}
+
+	return m, r, nil
+
 }
 
 // WriterFactory ensures to return a thread safe writer
