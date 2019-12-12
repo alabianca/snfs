@@ -39,9 +39,9 @@ const (
 	PingReqResSize = 61
 	FindNodeReqSize = 61
 	FindValueReqSize = 61
-	StoreReqSize = 67
-	FindNodeResSize = 581
-	FindValueResSize = 201 // Note: Assumes there are always k values in the payload
+	StoreReqSize = 79
+	FindNodeResSize = 821
+	FindValueResSize = 441 // Note: Assumes there are always k values in the payload
 )
 
 // Errors

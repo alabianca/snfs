@@ -38,10 +38,7 @@ func (n *FindNodeResponse) Bytes() ([]byte, error) {
 	out = append(out, sid...)
 	out = append(out, eid...)
 	for _, c := range n.Payload {
-		ser, err := c.Serialize()
-		if err != nil {
-			return nil, err
-		}
+		ser := c.Serialize()
 
 		out = append(out, ser...)
 	}
