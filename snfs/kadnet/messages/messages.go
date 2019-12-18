@@ -40,7 +40,7 @@ const (
 	FindNodeReqSize  = 61
 	FindValueReqSize = 61
 	StoreReqSize     = 79
-	FindNodeResSize  = 821
+	FindNodeResSize  = 841
 	FindValueResSize = 441 // Note: Assumes there are always k values in the payload
 )
 
