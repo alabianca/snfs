@@ -4,7 +4,6 @@ import (
 	"github.com/alabianca/gokad"
 )
 
-
 const ServiceName = "RPCManager"
 
 type Manager interface {
@@ -70,7 +69,7 @@ func (rpc *RpcManager) Bootstrap(port int, ip, idHex string) {
 
 }
 
-func (rpc *RpcManager) bootstrap(id *gokad.ID) {
+func (rpc *RpcManager) bootstrap(id gokad.ID) {
 	client := rpc.server.NewClient()
 	rpc.dht.NodeLookup(client, id)
 }

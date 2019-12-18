@@ -1,22 +1,23 @@
 package kadnet
 
 import (
-	"github.com/alabianca/gokad"
-	"github.com/alabianca/snfs/snfs/kadnet/client"
-	"github.com/alabianca/snfs/snfs/kadnet/conn"
-	"github.com/alabianca/snfs/snfs/kadnet/messages"
-	"github.com/alabianca/snfs/snfs/kadnet/kadmux"
-	"github.com/alabianca/snfs/snfs/kadnet/request"
 	"log"
 	"net"
 	"strconv"
+
+	"github.com/alabianca/gokad"
+	"github.com/alabianca/snfs/snfs/kadnet/client"
+	"github.com/alabianca/snfs/snfs/kadnet/conn"
+	"github.com/alabianca/snfs/snfs/kadnet/kadmux"
+	"github.com/alabianca/snfs/snfs/kadnet/messages"
+	"github.com/alabianca/snfs/snfs/kadnet/request"
 )
 
 type Server struct {
-	dht *DHT
-	host string
-	port int
-	mux *kadmux.KadMux
+	dht          *DHT
+	host         string
+	port         int
+	mux          *kadmux.KadMux
 	newClientReq chan *request.Request
 }
 
@@ -53,7 +54,7 @@ func (s *Server) Shutdown() {
 
 func (s *Server) NewClient() *client.Client {
 	return &client.Client{
-		ID: s.dht.Table.ID.String(),
+		ID:    s.dht.Table.ID.String(),
 		DoReq: s.newClientReq,
 	}
 }
@@ -86,7 +87,6 @@ func (s *Server) doRequest(req *request.Request, w conn.KadWriter) {
 	w.Write(data)
 }
 
-
 // RPC Handlers
 func (s *Server) onFindNode() kadmux.RpcHandler {
 	return func(conn conn.KadWriter, req *request.Request) {
@@ -104,7 +104,7 @@ func (s *Server) onFindNode() kadmux.RpcHandler {
 			return
 		}
 
-		contacts := dht.FindNode(*id)
+		contacts := dht.FindNode(id)
 		log.Printf("Found %d contacts\n", len(contacts))
 
 		res := messages.FindNodeResponse{

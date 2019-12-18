@@ -1,10 +1,11 @@
 package kadnet
 
 import (
-	"github.com/alabianca/snfs/snfs/kadnet/buffers"
 	"log"
 	"net"
 	"sync"
+
+	"github.com/alabianca/snfs/snfs/kadnet/buffers"
 
 	"github.com/alabianca/gokad"
 )
@@ -36,7 +37,7 @@ func newDHT() *DHT {
 }
 
 func (dht *DHT) GetOwnID() []byte {
-	return dht.Table.ID.Bytes()
+	return dht.Table.ID
 }
 
 func (dht *DHT) Bootstrap(port int, ip, idHex string) (*gokad.Contact, int, error) {
@@ -45,7 +46,7 @@ func (dht *DHT) Bootstrap(port int, ip, idHex string) (*gokad.Contact, int, erro
 	return dht.Table.Bootstrap(port, net.ParseIP(ip), idHex)
 }
 
-func (dht *DHT) NodeLookup(rpc RPC, id *gokad.ID) {
+func (dht *DHT) NodeLookup(rpc RPC, id gokad.ID) {
 	buf := buffers.GetNodeReplyBuffer()
 	buf.Open()
 	defer buf.Close()
@@ -66,12 +67,11 @@ func (dht *DHT) NodeLookup(rpc RPC, id *gokad.ID) {
 	}
 }
 
-func (dht *DHT) getAlphaNodes(alpha int, id *gokad.ID) []gokad.Contact {
+func (dht *DHT) getAlphaNodes(alpha int, id gokad.ID) []gokad.Contact {
 	dht.mtx.Lock()
 	defer dht.mtx.Unlock()
-	return dht.Table.GetAlphaNodes(alpha, *id)
+	return dht.Table.GetAlphaNodes(alpha, id)
 }
-
 
 func (dht *DHT) FindNode(id gokad.ID) []gokad.Contact {
 	dht.mtx.Lock()

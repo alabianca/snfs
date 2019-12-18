@@ -56,8 +56,6 @@ func (n *FindNodeResponse) GetSenderID() string {
 	return n.SenderID
 }
 
-
-
 // FIND NODE REQUEST
 
 type FindNodeRequest struct {
@@ -93,7 +91,6 @@ func (n *FindNodeRequest) Bytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-
 
 	pid, err := SerializeID(n.Payload)
 	if err != nil {

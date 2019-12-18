@@ -34,13 +34,13 @@ const (
 	StoreReq     = MessageType(26)
 	StoreRes     = MessageType(27)
 	// Message Sizes
-	PingReqSize = 41
-	PingResSize = 41
-	PingReqResSize = 61
-	FindNodeReqSize = 61
+	PingReqSize      = 41
+	PingResSize      = 41
+	PingReqResSize   = 61
+	FindNodeReqSize  = 61
 	FindValueReqSize = 61
-	StoreReqSize = 79
-	FindNodeResSize = 821
+	StoreReqSize     = 79
+	FindNodeResSize  = 821
 	FindValueResSize = 441 // Note: Assumes there are always k values in the payload
 )
 
@@ -99,7 +99,7 @@ func Process(raw []byte) (Message, error) {
 
 func processFindNodeRequest(m *Message, p []byte) error {
 	// account for the multiplex key not to be there at this point
-	if len(p) != FindNodeReqSize - 1{
+	if len(p) != FindNodeReqSize-1 {
 		return errors.New(ErrNoMatchMessageSize)
 	}
 	offsetSender := 0
@@ -238,5 +238,3 @@ func SerializeID(id string) ([]byte, error) {
 func ToStringId(id []byte) string {
 	return fmt.Sprintf("%x", id)
 }
-
-
