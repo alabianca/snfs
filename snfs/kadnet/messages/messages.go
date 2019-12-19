@@ -141,7 +141,7 @@ func ToKademliaMessage(msg *Message, km KademliaMessage) {
 }
 
 func processContacts(raw []byte) []gokad.Contact {
-	delim := make([]byte, 0)
+	delim := make([]byte, 1)
 	split := bytes.Split(raw, delim)
 	out := make([]gokad.Contact, len(split))
 
