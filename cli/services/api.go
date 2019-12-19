@@ -10,9 +10,10 @@ type RestAPI struct {
 	httpClient http.Client
 }
 
-func NewRestAPI() *RestAPI {
+func NewRestAPI(baseUrl string) *RestAPI {
+
 	return &RestAPI{
-		baseURL:    "http://localhost:4200/api/",
+		baseURL:    baseUrl,
 		httpClient: http.Client{},
 	}
 }

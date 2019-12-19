@@ -23,9 +23,7 @@ import (
 	"github.com/alabianca/snfs/snfs/server"
 )
 
-var dport = flag.Int("dp", 4000, "Port of the peer service, discoverable by peers")
 var cport = flag.Int("cp", 4001, "Port of the client connectivity service. This port is used by local client applications")
-var instance = flag.String("i", "default", "Instance Name")
 
 const topLevelDomain = ".snfs.com"
 
@@ -106,12 +104,12 @@ func resolveServices(s *server.Server) map[string]server.Service {
 
 func configureMDNS(port int, address, id string) discovery.Option {
 	return func(m *discovery.MdnsService) {
-		m.SetPort(*dport)
 		text := []string{
 			"Port:" + strconv.Itoa(port),
 			"Address:" + address,
 			"NodeID:" + id,
 		}
+		m.SetPort(port)
 		m.SetText(text)
 	}
 }

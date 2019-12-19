@@ -36,7 +36,7 @@ type MdnsService struct {
 
 func NewMdnsService() *MdnsService {
 	return &MdnsService{
-		api: NewRestAPI(),
+		api: NewRestAPI(getBaseURL()),
 	}
 }
 

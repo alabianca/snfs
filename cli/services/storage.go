@@ -25,7 +25,7 @@ type StorageService struct {
 
 func NewStroageService() *StorageService {
 	return &StorageService{
-		api: NewRestAPI(),
+		api: NewRestAPI(getBaseURL()),
 	}
 }
 

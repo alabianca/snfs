@@ -17,7 +17,7 @@ type BoostrapService struct {
 
 func NewBootstrapService() *BoostrapService {
 	return &BoostrapService{
-		api: NewRestAPI(),
+		api: NewRestAPI(getBaseURL()),
 	}
 }
 
