@@ -81,7 +81,6 @@ func startService(s server.Service) {
 
 	server.QueueServiceRequest(req)
 	<-req.Res
-	log.Printf("Started Service %s\n", s.Name())
 }
 
 func resolveServices(s *server.Server) map[string]server.Service {

@@ -158,12 +158,10 @@ func (s *Server) mainLoop() {
 		case <-nextRun:
 			pendingRequests = pendingRequests[1:]
 			go func(req ServiceRequest) {
-				log.Printf("Handling Request %d for %s\n", req.Op, req.Service.Name())
 				s.handleRequest(&req)
 			}(next)
 
 		case <-s.stopAll:
-			log.Printf("Stopping All pendingServices\n")
 			for _, j := range s.services {
 				log.Printf("Stopping %s %v\n", j.service.Name(), j.started)
 				if j.started {
@@ -191,6 +189,7 @@ func (s *Server) handleRequest(req *ServiceRequest) {
 }
 
 func (s *Server) startService(req *ServiceRequest) {
+	log.Printf("Starting Service: %s\n", req.Service.Name())
 	entry, _ := s.services[req.Service.Name()]
 	if entry.started {
 		return
@@ -198,7 +197,6 @@ func (s *Server) startService(req *ServiceRequest) {
 	entry.started = true
 	go func() {
 		entry.service.Run()
-		log.Printf("%s mainloop exited\n", entry.service.Name())
 	}()
 
 	req.Res <- ResCodeServiceStarted

@@ -1,7 +1,6 @@
 package kadnet
 
 import (
-	"log"
 	"net"
 	"sync"
 
@@ -56,12 +55,10 @@ func (dht *DHT) NodeLookup(rpc RPC, id gokad.ID) {
 
 	for _, c := range alphaNodes {
 		go func(contact gokad.Contact) {
-			log.Printf("Sending FindNode Rpc to %s\n", c)
 			res, err := rpc.FindNode(contact, strID)
 			if err == nil {
 				contacts = append(contacts, res...)
 			} else {
-				log.Printf("Error FindNode %s\n", err)
 			}
 		}(c)
 	}

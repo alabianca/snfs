@@ -1,9 +1,5 @@
 package kadmux
 
-import (
-	"log"
-)
-
 type Dispatcher struct {
 	newWork           chan WorkRequest
 	workers           chan chan WorkRequest
@@ -47,8 +43,7 @@ func (d *Dispatcher) Start() {
 }
 
 func (d *Dispatcher) Stop() {
-	for i, w := range d.registeredWorkers {
-		log.Printf("Stopping Worker %d\n", i)
+	for _, w := range d.registeredWorkers {
 		w.Stop()
 	}
 

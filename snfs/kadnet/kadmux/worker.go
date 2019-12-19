@@ -1,9 +1,10 @@
 package kadmux
 
 import (
+	"log"
+
 	"github.com/alabianca/snfs/snfs/kadnet/conn"
 	"github.com/alabianca/snfs/snfs/kadnet/request"
-	"log"
 )
 
 type WorkRequest struct {
@@ -13,17 +14,17 @@ type WorkRequest struct {
 }
 
 type Worker struct {
-	id int
-	Work chan WorkRequest
+	id      int
+	Work    chan WorkRequest
 	Workers chan chan WorkRequest
-	exit chan bool
+	exit    chan bool
 }
 
 func NewWorker(id int) *Worker {
 	return &Worker{
-		id:      id,
+		id:   id,
 		Work: make(chan WorkRequest),
-		exit:    make(chan bool),
+		exit: make(chan bool),
 	}
 }
 
@@ -34,7 +35,7 @@ func (w *Worker) Start(queue chan chan WorkRequest) {
 		queue <- w.Work
 
 		select {
-		case work := <- w.Work:
+		case work := <-w.Work:
 			work.Handler(work.ArgConn, work.ArgRequest)
 		case <-w.exit:
 			log.Printf("Exit Worker %d\n", w.id)

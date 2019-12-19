@@ -1,11 +1,11 @@
 package kadmux
 
 import (
+	"net"
+
 	"github.com/alabianca/snfs/snfs/kadnet/conn"
 	"github.com/alabianca/snfs/snfs/kadnet/messages"
 	"github.com/alabianca/snfs/snfs/kadnet/request"
-	"log"
-	"net"
 )
 
 const HandlerNotFoundErr = "Handler Not Found"
@@ -102,7 +102,6 @@ func (k *KadMux) handleRequests() {
 			if !ok {
 				continue
 			}
-			log.Println("Qeuueing Handler %d\n", work.ArgRequest.MultiplexKey())
 			work.Handler = handler
 			queue = append(queue, &work)
 		}

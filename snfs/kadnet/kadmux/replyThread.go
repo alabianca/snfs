@@ -1,13 +1,13 @@
 package kadmux
 
 import (
+	"net"
+
 	"github.com/alabianca/gokad"
 	"github.com/alabianca/snfs/snfs/kadnet/buffers"
 	"github.com/alabianca/snfs/snfs/kadnet/conn"
 	"github.com/alabianca/snfs/snfs/kadnet/messages"
 	"github.com/alabianca/snfs/snfs/kadnet/request"
-	"log"
-	"net"
 )
 
 type ReplyThread struct {
@@ -52,7 +52,6 @@ func (r *ReplyThread) Run(newWork chan<- WorkRequest, exit <-chan chan error) {
 			out <- nil
 			return
 		case msg := <-r.onRequest:
-			log.Printf("Queueing Request %d\n", msg.Message.MultiplexKey)
 			queue = append(queue, msg)
 
 		case fanout <- next:

@@ -2,10 +2,10 @@ package conn
 
 import (
 	"errors"
-	"github.com/alabianca/snfs/snfs/kadnet/messages"
-	"log"
 	"net"
 	"sync"
+
+	"github.com/alabianca/snfs/snfs/kadnet/messages"
 )
 
 const (
@@ -20,7 +20,6 @@ type KadConn interface {
 	Close() error
 }
 
-
 type KadReader interface {
 	Next() (messages.Message, net.Addr, error)
 }
@@ -31,12 +30,11 @@ type KadWriter interface {
 
 type writer struct {
 	addr net.Addr
-	mtx *sync.Mutex
+	mtx  *sync.Mutex
 	conn net.PacketConn
 }
 
 func (w *writer) Write(p []byte) (int, error) {
-	log.Printf("Sending: %d bytes\n", len(p))
 	return w.write(p)
 }
 
@@ -47,12 +45,11 @@ func (w *writer) write(p []byte) (int, error) {
 	for written < len(p) {
 		n, err := w.conn.WriteTo(p[written:], w.addr)
 		if err != nil {
-			return written,  err
+			return written, err
 		}
 
-		written+=n
+		written += n
 	}
-	log.Printf("Written %d bytes to %s\n", written, w.addr)
 	return written, nil
 }
 
@@ -96,9 +93,6 @@ func (c *conn) read(p []byte) (int, net.Addr, error) {
 	return n, r, err
 }
 
-
-
-
 // WriterFactory ensures to return a thread safe writer
 // KadWriter needs to be thread safe as we are writing to it potentially from multiple
 // goroutines.
@@ -112,7 +106,3 @@ func (c *conn) WriterFactory() func(addr net.Addr) KadWriter {
 		}
 	}
 }
-
-
-
-

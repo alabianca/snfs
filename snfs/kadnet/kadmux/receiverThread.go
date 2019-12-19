@@ -1,11 +1,11 @@
 package kadmux
 
 import (
-	conn2 "github.com/alabianca/snfs/snfs/kadnet/conn"
-	"github.com/alabianca/snfs/snfs/kadnet/messages"
-	"log"
 	"net"
 	"time"
+
+	conn2 "github.com/alabianca/snfs/snfs/kadnet/conn"
+	"github.com/alabianca/snfs/snfs/kadnet/messages"
 )
 
 const maxMsgBuffer = 100
@@ -24,9 +24,9 @@ type ReceiverThread struct {
 
 func NewReceiverThread(res, req chan<- messages.CompleteMessage, conn conn2.KadReader) *ReceiverThread {
 	return &ReceiverThread{
-		fanoutReply:  res,
+		fanoutReply:   res,
 		fanoutRequest: req,
-		conn:         conn,
+		conn:          conn,
 	}
 }
 
@@ -60,13 +60,12 @@ func (r *ReceiverThread) Run(exit <-chan chan error) {
 			}
 		}
 
-
 		select {
 		case out := <-exit:
 			out <- nil
 			return
 
-		case result := <- readDone:
+		case result := <-readDone:
 			readDone = nil
 			if result.err != nil {
 				// try again
@@ -78,17 +77,13 @@ func (r *ReceiverThread) Run(exit <-chan chan error) {
 		case <-startRead:
 			readDone = make(chan readResult, 1)
 			go func() {
-				log.Println("Waiting for next message ...")
 				msg, raddr, err := r.conn.Next()
-				log.Printf("Received a message %d %s\n", msg.MultiplexKey, err)
 				readDone <- readResult{msg, raddr, err}
 			}()
 
 		case fanout <- nextMessage:
-			log.Printf("Fanout Received KademliaMessage %d\n", nextMessage.Message.MultiplexKey)
 			receivedMsgs = receivedMsgs[1:]
 		}
 
 	}
 }
-
