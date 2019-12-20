@@ -23,12 +23,15 @@ import (
 	"github.com/alabianca/snfs/snfs/server"
 )
 
-var cport = flag.Int("cp", 4001, "Port of the client connectivity service. This port is used by local client applications")
-
 const topLevelDomain = ".snfs.com"
+
+var cport int
+var dport int
 
 func main() {
 	myIP, err := util.MyIP("ipv4")
+	cport = getPort("SNFS_CLIENT_CONNECTIVITY", 4200)
+	dport = getPort("SNFS_DISCOVERY", 5050)
 
 	if err != nil {
 		log.Fatal(err)
@@ -40,7 +43,7 @@ func main() {
 
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
-	srv := server.New(5050, myIP.String())
+	srv := server.New(dport, myIP.String())
 
 	// initialize global queue channel
 	server.InitQueue(server.NumServices)
@@ -88,7 +91,7 @@ func resolveServices(s *server.Server) map[string]server.Service {
 	storage := fs.NewManager()
 	dm := discovery.NewManager(discovery.MdnsStrategy(configureMDNS(s.Port, s.Addr, rpc.ID())))
 	cc := client.NewConnectivityService(dm, storage, rpc)
-	cc.SetAddr("", *cport)
+	cc.SetAddr("", cport)
 
 	services := map[string]server.Service{
 		rpc.Name():     rpc,
@@ -120,4 +123,14 @@ func splitFromTopLevelDomain(instance string) (string, error) {
 	split := strings.Split(instance, topLevelDomain)
 
 	return split[0], nil
+}
+
+func getPort(prefix string, def int) int {
+	p := os.Getenv(prefix + "_PORT")
+	port, err := strconv.ParseInt(p, 10, 16)
+	if err != nil {
+		return def
+	}
+
+	return int(port)
 }

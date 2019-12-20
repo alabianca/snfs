@@ -102,7 +102,7 @@ func (n *FindNodeRequest) Bytes() ([]byte, error) {
 		return nil, nil
 	}
 
-	out := make([]byte, 1)
+	out := make([]byte, 0)
 	out = append(out, mkey...)
 	out = append(out, sid...)
 	out = append(out, pid...)
