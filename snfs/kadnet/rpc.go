@@ -15,7 +15,7 @@ type Manager interface {
 }
 
 type RPC interface {
-	FindNode(c gokad.Contact, id string) (messages.FindNodeResponse, error)
+	FindNode(c gokad.Contact, id string) (chan messages.Message, error)
 }
 
 type RpcManager struct {

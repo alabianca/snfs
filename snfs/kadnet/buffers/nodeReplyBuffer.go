@@ -76,19 +76,14 @@ func (n *NodeReplyBuffer) Put(c messages.Message) bool {
 	return true
 }
 
-func (n *NodeReplyBuffer) GetMessage(id string) (messages.Message, error) {
+func (n *NodeReplyBuffer) GetMessage(id string) (chan messages.Message, error) {
 	if !n.IsOpen() {
-		return messages.Message{}, errors.New(ClosedBufferErr)
+		return nil, errors.New(ClosedBufferErr)
 	}
 	query := bufferQuery{id, make(chan messages.Message)}
 	n.subscribe <- query
 
-	select {
-	case <-time.After(n.waitTimeout):
-		return messages.Message{}, errors.New(TimeoutErr)
-	case m := <-query.response:
-		return m, nil
-	}
+	return query.response, nil
 }
 
 func (n *NodeReplyBuffer) accept() {
