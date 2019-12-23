@@ -1,10 +1,10 @@
 package messages
 
 import (
-	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"math"
 	"net"
 
 	"github.com/alabianca/snfs/util"
@@ -45,6 +45,7 @@ const (
 
 // Errors
 const ErrNoMatchMessageSize = "byte length does not match message size"
+const ErrContactsMalformed = "contacts malformed. should be an integer"
 
 type CompleteMessage struct {
 	Message Message
@@ -82,6 +83,7 @@ func GetMessageSize(x MessageType) int {
 	return size
 }
 
+// Process - General structure of a message
 // <-  1 Bytes    <- 20 Bytes  <- 20 Bytes       <- X Bytes  <- 20 Bytes
 //  MultiplexKey      SenderID    EchoedRandomId    Payload     RandomID
 func Process(raw []byte) (Message, error) {
@@ -90,15 +92,17 @@ func Process(raw []byte) (Message, error) {
 	switch mKey {
 	case FindNodeReq:
 		processFindNodeRequest(&message, raw[1:])
+	case FindNodeRes:
+		processFindNodeResponse(&message, raw[1:])
+
 	}
 
 	return message, nil
 }
 
 func processFindNodeRequest(m *Message, p []byte) error {
-	// account for the multiplex key not to be there at this point
-	if len(p) != FindNodeReqSize-1 {
-		return errors.New(ErrNoMatchMessageSize)
+	if err := checkBounds(p, FindNodeReqSize); err != nil {
+		return err
 	}
 	offsetSender := 0
 	offsetLookupId := 20
@@ -114,6 +118,40 @@ func processFindNodeRequest(m *Message, p []byte) error {
 }
 
 func processFindNodeResponse(m *Message, p []byte) error {
+	l := len(p)
+
+	offsetSender := 0
+	offsetEchoRandomId := 20
+	offsetPayload := 40
+	offsetRandomId := len(p) - 20
+
+	// ensure there is space for senderId and echo random id
+	if l < offsetPayload - 1 {
+		return errors.New(ErrNoMatchMessageSize)
+	}
+
+	// good. now ensure there is space for at least one contact and a randomId (every contact is 38 bytes long)
+	contactL := 38
+	if l < (offsetPayload + contactL + 20) {
+		return errors.New(ErrNoMatchMessageSize)
+	}
+
+
+	m.MultiplexKey = FindNodeRes
+	m.SenderID = p[offsetSender:offsetEchoRandomId]
+	m.EchoedRandomID = p[offsetEchoRandomId:offsetPayload]
+	m.Payload = p[offsetPayload: offsetRandomId]
+	m.RandomID = p[offsetRandomId:]
+
+	return nil
+}
+
+func checkBounds(p []byte, size int) error {
+	// account for the multiplex key not to be there at this point
+	if len(p) != size -1 {
+		return errors.New(ErrNoMatchMessageSize)
+	}
+
 	return nil
 }
 
@@ -128,31 +166,45 @@ func ToKademliaMessage(msg *Message, km KademliaMessage) {
 			Payload:      ToStringId(msg.Payload),
 		}
 	case *FindNodeResponse:
-		*v = FindNodeResponse{
-			SenderID:     ToStringId(msg.SenderID),
-			EchoRandomID: ToStringId(msg.EchoedRandomID),
-			Payload:      processContacts(msg.Payload),
-			RandomID:     ToStringId(msg.RandomID),
+		if c, err := processContacts(msg.Payload); err == nil {
+			*v = FindNodeResponse{
+				SenderID:     ToStringId(msg.SenderID),
+				EchoRandomID: ToStringId(msg.EchoedRandomID),
+				Payload:      c,
+				RandomID:     ToStringId(msg.RandomID),
+			}
 		}
+
 	}
 
 }
 
-func processContacts(raw []byte) []gokad.Contact {
-	delim := make([]byte, 1)
-	split := bytes.Split(raw, delim)
-	out := make([]gokad.Contact, len(split))
+// every contact is 38 bytes long.
+// split the raw bytes in chuncks of 38 bytes.
+func processContacts(raw []byte) ([]gokad.Contact, error) {
+	offset := 0
+	cLen := 38
+	l := float64(len(raw))
+	x := float64(cLen)
+	numContacts := l / x
+	// if numContacts if not a flat integer we have some malformed payload.
+	if numContacts != math.Trunc(numContacts) {
+		return nil, errors.New(ErrContactsMalformed)
+	}
+
+	out := make([]gokad.Contact, int(numContacts))
 
 	insert := 0
-	for _, c := range split {
-		contact, err := toContact(c)
+	for offset < int(l) {
+		contact, err := toContact(raw[offset:offset+cLen])
 		if err == nil {
 			out[insert] = contact
 			insert++
 		}
+		offset += cLen
 	}
 
-	return out
+	return out, nil
 }
 
 func toContact(b []byte) (gokad.Contact, error) {
@@ -172,11 +224,8 @@ func toContact(b []byte) (gokad.Contact, error) {
 	idBytes := b[idOffset:portOffset]
 	portBytes := b[portOffset:ipOffset]
 	ipBytes := b[ipOffset:len(b)]
-	ip := net.ParseIP(string(ipBytes))
+	ip := net.IP(ipBytes)
 
-	if ip == nil {
-		return gokad.Contact{}, errors.New("Invalid IP")
-	}
 
 	port := binary.BigEndian.Uint16(portBytes)
 	id, err := gokad.From(ToStringId(idBytes))

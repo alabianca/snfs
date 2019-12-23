@@ -8,7 +8,7 @@ import (
 )
 
 type CompareFunc func(a gokad.Distance, b gokad.Distance) int //GENERIC
-type TraverseFunc func(k gokad.Distance, v gokad.Contact) bool // GENERIC
+type TraverseFunc func(k gokad.Distance, v PendingNode) bool // GENERIC
 
 // TreeMap implementation
 
@@ -23,7 +23,7 @@ func NewMap(compFn CompareFunc) *TreeMap {
 	}
 }
 
-func (t *TreeMap) Insert(key gokad.Distance, data gokad.Contact) bool { // GENERIC
+func (t *TreeMap) Insert(key gokad.Distance, data PendingNode) bool { // GENERIC
 	if t.root == nil {
 		t.root = newNode(nil, t.comp, false, key, data)
 		t.root.insertFixup(t.root)
@@ -39,11 +39,11 @@ func (t *TreeMap) Insert(key gokad.Distance, data gokad.Contact) bool { // GENER
 	return false
 }
 
-func (t *TreeMap) Get(key gokad.Distance) (gokad.Contact, bool) { // GENERIC
-	var d gokad.Contact
+func (t *TreeMap) Get(key gokad.Distance) (PendingNode, bool) { // GENERIC
+	var d PendingNode
 	var ok bool
 
-	t.Traverse(func(k gokad.Distance, v gokad.Contact) bool { // GENERIC
+	t.Traverse(func(k gokad.Distance, v PendingNode) bool { // GENERIC
 		if t.comp(k, key) == 0 {
 			ok = true
 			d = v
@@ -58,7 +58,7 @@ func (t *TreeMap) Get(key gokad.Distance) (gokad.Contact, bool) { // GENERIC
 
 func (t TreeMap) String() string {
 	buf := new(bytes.Buffer)
-	t.Traverse(func(k gokad.Distance, v gokad.Contact) bool { // GENERIC
+	t.Traverse(func(k gokad.Distance, v PendingNode) bool { // GENERIC
 		buf.WriteString(fmt.Sprintf("%v(%v)->", k, v))
 		return true
 	})
@@ -116,7 +116,7 @@ func (t *TreeMap) traverse(n *node, proj TraverseFunc) {
 // Node Implementation. Everything must be private at this point
 type nodeData struct { // GENERIC
 	key  gokad.Distance
-	data gokad.Contact
+	data PendingNode
 }
 
 type node struct {
@@ -130,7 +130,7 @@ type node struct {
 }
 
 // GENERIC
-func newNode(parent *node, c CompareFunc, isLeftChild bool, key gokad.Distance, data gokad.Contact) *node {
+func newNode(parent *node, c CompareFunc, isLeftChild bool, key gokad.Distance, data PendingNode) *node {
 	return &node{
 		black:       false, // a node is always inserted red
 		isLeftChild: isLeftChild,
@@ -146,7 +146,7 @@ func newNode(parent *node, c CompareFunc, isLeftChild bool, key gokad.Distance, 
 }
 
 // GENERIC
-func (n *node) insert(key gokad.Distance, data gokad.Contact) *node {
+func (n *node) insert(key gokad.Distance, data PendingNode) *node {
 	addedNode := n.insertSimple(key, data)
 	if addedNode != nil {
 		return n.insertFixup(addedNode)
@@ -156,7 +156,7 @@ func (n *node) insert(key gokad.Distance, data gokad.Contact) *node {
 }
 
 // GENERIC
-func (n *node) insertSimple(key gokad.Distance, data gokad.Contact) *node {
+func (n *node) insertSimple(key gokad.Distance, data PendingNode) *node {
 	res := n.comp(n.data.key, key)
 	if res < 0 {
 		if n.left != nil {
