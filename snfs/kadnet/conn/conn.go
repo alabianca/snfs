@@ -71,7 +71,7 @@ func (c *conn) Next() (messages.Message, net.Addr, error) {
 	buf := make([]byte, messages.FindNodeResSize) // this is the largest possible message
 	n, r, err := c.read(buf)
 	if err != nil {
-		return messages.Message{}, r, err
+		return nil, r, err
 	}
 
 	m, err := messages.Process(buf[:n])

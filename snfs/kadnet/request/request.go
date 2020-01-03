@@ -9,10 +9,10 @@ import (
 
 type Request struct {
 	Contact gokad.Contact
-	Body    messages.KademliaMessage
+	Body    messages.Message
 }
 
-func New(c gokad.Contact, body messages.KademliaMessage) *Request {
+func New(c gokad.Contact, body messages.Message) *Request {
 	return &Request{
 		Contact: c,
 		Body:    body,
@@ -20,7 +20,8 @@ func New(c gokad.Contact, body messages.KademliaMessage) *Request {
 }
 
 func (r *Request) MultiplexKey() messages.MessageType {
-	return r.Body.MultiplexKey()
+	key, _ := r.Body.MultiplexKey()
+	return key
 }
 
 func (r *Request) Address() net.Addr {

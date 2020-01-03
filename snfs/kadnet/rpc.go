@@ -2,7 +2,7 @@ package kadnet
 
 import (
 	"github.com/alabianca/gokad"
-	"github.com/alabianca/snfs/snfs/kadnet/messages"
+	"github.com/alabianca/snfs/snfs/kadnet/response"
 )
 
 const ServiceName = "RPCManager"
@@ -15,7 +15,7 @@ type Manager interface {
 }
 
 type RPC interface {
-	FindNode(c gokad.Contact, id string) (chan messages.Message, error)
+	FindNode(c gokad.Contact, id string) (*response.Response, error)
 }
 
 type RpcManager struct {

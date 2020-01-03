@@ -9,24 +9,27 @@ const (
 	ErrInvalidMessage = "invalid Message"
 )
 
-type MessageX []byte
+type Message []byte
 
-func (m MessageX) MultiplexKey() (MessageType, error) {
+func (m Message) MultiplexKey() (MessageType, error) {
 	if len(m) < 1 {
 		return MessageType(0), invalidMessage()
 	}
 	return MessageType(m[0]), nil
 }
 
-func (m MessageX) SenderID() (gokad.ID, error) {
+func (m Message) SenderID() (gokad.ID, error) {
 	if len(m) < 21 {
 		return nil, invalidMessage()
 	}
 
-	return gokad.ID(m[1:21]), nil
+	out := make([]byte, 20)
+	copy(out, m[1:21])
+
+	return gokad.ID(out), nil
 }
 
-func (m MessageX) EchoRandomID() ([]byte, error) {
+func (m Message) EchoRandomID() ([]byte, error) {
 	key, _ := m.MultiplexKey()
 	// a request does not have an echoRandomID
 	if IsRequest(key) {
@@ -37,19 +40,25 @@ func (m MessageX) EchoRandomID() ([]byte, error) {
 		return nil, invalidMessage()
 	}
 
-	return m[21: 42], nil
+	out := make([]byte, 20)
+	copy(out, m[21:42])
+
+	return out, nil
 }
 
-func (m MessageX) RandomID() ([]byte, error) {
+func (m Message) RandomID() ([]byte, error) {
 	l := len(m)
 	if l < 41 {
 		return nil, invalidMessage()
 	}
 
-	return m[l - 20:], nil
+	out := make([]byte, 20)
+	copy(out, m[l - 20:])
+
+	return out, nil
 }
 
-func (m MessageX) Payload() ([]byte, error) {
+func (m Message) Payload() ([]byte, error) {
 	var startOfPayload int
 	key, _ := m.MultiplexKey()
 	l := len(m)
@@ -70,12 +79,15 @@ func (m MessageX) Payload() ([]byte, error) {
 	}
 
 	// payload range is from startOfPayload (index 21 or 41) to startOf randomID
-	endOfPayload := (l - 20) - startOfPayload
+	endOfPayload := l - 20
 	if endOfPayload < startOfPayload {
 		return nil, invalidMessage()
 	}
 
-	return m[startOfPayload: endOfPayload], nil
+	out := make([]byte, (endOfPayload - startOfPayload))
+	copy(out, m[startOfPayload:endOfPayload])
+
+	return out, nil
 
 }
 

@@ -4,7 +4,6 @@ import (
 	"net"
 	"strconv"
 
-	"github.com/alabianca/gokad"
 	"github.com/alabianca/snfs/snfs/kadnet/client"
 	"github.com/alabianca/snfs/snfs/kadnet/conn"
 	"github.com/alabianca/snfs/snfs/kadnet/kadmux"
@@ -77,43 +76,39 @@ func (s *Server) handleClientRequests(nwf func(addr net.Addr) conn.KadWriter) {
 }
 
 func (s *Server) doRequest(req *request.Request, w conn.KadWriter) {
-	data, err := req.Body.Bytes()
-	if err != nil {
-		return
-	}
 
-	w.Write(data)
+	w.Write(req.Body)
 }
 
 // RPC Handlers
 func (s *Server) onFindNode() kadmux.RpcHandler {
 	return func(conn conn.KadWriter, req *request.Request) {
-		fnr, ok := req.Body.(*messages.FindNodeRequest)
-		if !ok {
-			return
-		}
-
-		dht := GetDHT()
-		id, err := gokad.From(fnr.Payload)
-		if err != nil {
-			return
-		}
-
-		contacts := dht.FindNode(id)
-
-		res := messages.FindNodeResponse{
-			SenderID:     dht.Table.ID.String(),
-			EchoRandomID: fnr.RandomID,
-			Payload:      contacts,
-			RandomID:     gokad.GenerateRandomID().String(),
-		}
-
-		bts, err := res.Bytes()
-		if err != nil {
-			return
-		}
-
-		if _, err := conn.Write(bts); err != nil {
-		}
+		//fnr, ok := req.Body.(*messages.FindNodeRequest)
+		//if !ok {
+		//	return
+		//}
+		//
+		//dht := GetDHT()
+		//id, err := gokad.From(fnr.Payload)
+		//if err != nil {
+		//	return
+		//}
+		//
+		//contacts := dht.FindNode(id)
+		//
+		//res := messages.FindNodeResponse{
+		//	SenderID:     dht.Table.ID.String(),
+		//	EchoRandomID: fnr.RandomID,
+		//	Payload:      contacts,
+		//	RandomID:     gokad.GenerateRandomID().String(),
+		//}
+		//
+		//bts, err := res.Bytes()
+		//if err != nil {
+		//	return
+		//}
+		//
+		//if _, err := conn.Write(bts); err != nil {
+		//}
 	}
 }

@@ -1,6 +1,8 @@
 package kadmux
 
 import (
+	"github.com/alabianca/gokad"
+	"github.com/alabianca/snfs/snfs/kadnet/request"
 	"net"
 	"time"
 
@@ -17,12 +19,12 @@ type readResult struct {
 }
 
 type ReceiverThread struct {
-	fanoutReply   chan<- messages.CompleteMessage
-	fanoutRequest chan<- messages.CompleteMessage
+	fanoutReply   chan<- messages.Message
+	fanoutRequest chan<- *request.Request
 	conn          conn2.KadReader
 }
 
-func NewReceiverThread(res, req chan<- messages.CompleteMessage, conn conn2.KadReader) *ReceiverThread {
+func NewReceiverThread(res chan <-messages.Message, req chan<- *request.Request, conn conn2.KadReader) *ReceiverThread {
 	return &ReceiverThread{
 		fanoutReply:   res,
 		fanoutRequest: req,
@@ -47,16 +49,32 @@ func (r *ReceiverThread) Run(exit <-chan chan error) {
 			startRead = time.After(readDelay)
 		}
 
-		// fanout
-		var fanout chan<- messages.CompleteMessage
-		var nextMessage messages.CompleteMessage
+		// decide where to send the message
+		// if it is a response we send it along the response fanout channel
+		// if it is a valid request we send it along the request fanout channel
+		var fanoutRequest chan<- *request.Request
+		var fanoutResponse chan<- messages.Message
+		var nextMessage messages.Message
+		var nextRequest *request.Request
 		if len(receivedMsgs) > 0 {
-			nextMessage = messages.CompleteMessage{receivedMsgs[0].message, receivedMsgs[0].remote}
+			next := receivedMsgs[0]
+			nextMessage = next.message
+			key, _ := nextMessage.MultiplexKey()
+			sender, _ := nextMessage.SenderID()
+			if udpAddr, err := net.ResolveUDPAddr("udp", next.remote.String()); err != nil && !messages.IsResponse(key) {
+				fanoutRequest = r.fanoutRequest
+				contact := gokad.Contact{
+					ID:   sender,
+					IP:   udpAddr.IP,
+					Port: udpAddr.Port,
+				}
+				nextRequest = request.New(contact, nextMessage)
+			} else if err != nil {
+				receivedMsgs = receivedMsgs[1:]
+			}
 
-			if messages.IsResponse(nextMessage.Message.MultiplexKey) {
-				fanout = r.fanoutReply
-			} else {
-				fanout = r.fanoutRequest
+			if messages.IsResponse(key) {
+				fanoutResponse = r.fanoutReply
 			}
 		}
 
@@ -81,7 +99,10 @@ func (r *ReceiverThread) Run(exit <-chan chan error) {
 				readDone <- readResult{msg, raddr, err}
 			}()
 
-		case fanout <- nextMessage:
+		case fanoutRequest <- nextRequest:
+			receivedMsgs = receivedMsgs[1:]
+
+		case fanoutResponse <- nextMessage:
 			receivedMsgs = receivedMsgs[1:]
 		}
 

@@ -3,7 +3,6 @@ package kadmux
 import (
 	"net"
 
-	"github.com/alabianca/gokad"
 	"github.com/alabianca/snfs/snfs/kadnet/buffers"
 	"github.com/alabianca/snfs/snfs/kadnet/conn"
 	"github.com/alabianca/snfs/snfs/kadnet/messages"
@@ -11,14 +10,14 @@ import (
 )
 
 type ReplyThread struct {
-	onResponse    <-chan messages.CompleteMessage
-	onRequest     <-chan messages.CompleteMessage
+	onResponse    <-chan messages.Message
+	onRequest     <-chan *request.Request
 	newWriterFunc func(addr net.Addr) conn.KadWriter
 	// buffers
 	nodeReplyBuffer *buffers.NodeReplyBuffer
 }
 
-func NewReplyThread(res, req <-chan messages.CompleteMessage, nwf func(addr net.Addr) conn.KadWriter) *ReplyThread {
+func NewReplyThread(res chan messages.Message, req <-chan *request.Request, nwf func(addr net.Addr) conn.KadWriter) *ReplyThread {
 	return &ReplyThread{
 		onRequest:       req,
 		onResponse:      res,
@@ -28,31 +27,25 @@ func NewReplyThread(res, req <-chan messages.CompleteMessage, nwf func(addr net.
 }
 
 func (r *ReplyThread) Run(newWork chan<- WorkRequest, exit <-chan chan error) {
-	queue := make([]messages.CompleteMessage, 0)
+	queue := make([]*request.Request, 0)
 
 	for {
 
 		var next WorkRequest
 		var fanout chan<- WorkRequest
-		var err error
 		if len(queue) > 0 {
-			next, err = r.newWorkRequest(queue[0])
-			if err != nil {
-				queue = queue[1:]
-				continue
-			}
-
+			next = r.newWorkRequest(queue[0])
 			fanout = newWork
 		}
 
 		select {
 		case msg := <-r.onResponse:
-			r.tempStoreMsg(msg.Message)
+			r.tempStoreMsg(msg)
 		case out := <-exit:
 			out <- nil
 			return
-		case msg := <-r.onRequest:
-			queue = append(queue, msg)
+		case req := <-r.onRequest:
+			queue = append(queue, req)
 
 		case fanout <- next:
 			queue = queue[1:]
@@ -62,35 +55,27 @@ func (r *ReplyThread) Run(newWork chan<- WorkRequest, exit <-chan chan error) {
 }
 
 func (r *ReplyThread) tempStoreMsg(km messages.Message) {
-	switch km.MultiplexKey {
-	case messages.FindNodeRes:
-		r.nodeReplyBuffer.Put(km)
-	}
+	key, _ := km.MultiplexKey()
+	buf := r.getBuffer(key)
+
+	buf.Write(km)
 }
 
-func (r *ReplyThread) newWorkRequest(msg messages.CompleteMessage) (WorkRequest, error) {
-	km := messages.ProcessMessage(&msg.Message)
-	id, err := gokad.From(messages.ToStringId(msg.Message.SenderID))
-	if err != nil {
-		return WorkRequest{}, err
-	}
-	udpAddr, err := net.ResolveUDPAddr("udp", msg.Sender.String())
-	if err != nil {
-		return WorkRequest{}, err
+func (r *ReplyThread) getBuffer(key messages.MessageType) buffers.Buffer {
+	var buf buffers.Buffer
+	switch key {
+	case messages.FindNodeRes:
+		buf = r.nodeReplyBuffer
 	}
 
-	contact := gokad.Contact{
-		ID:   id,
-		IP:   udpAddr.IP,
-		Port: udpAddr.Port,
-	}
+	return buf
+}
 
-	req := request.New(contact, km)
-
+func (r *ReplyThread) newWorkRequest(req *request.Request) WorkRequest {
 	wReq := WorkRequest{
-		ArgConn:    r.newWriterFunc(msg.Sender),
+		ArgConn:    r.newWriterFunc(req.Address()),
 		ArgRequest: req,
 	}
 
-	return wReq, nil
+	return wReq
 }

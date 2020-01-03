@@ -47,18 +47,6 @@ const (
 const ErrNoMatchMessageSize = "byte length does not match message size"
 const ErrContactsMalformed = "contacts malformed. should be an integer"
 
-type CompleteMessage struct {
-	Message Message
-	Sender  net.Addr
-}
-
-type Message struct {
-	MultiplexKey   MessageType
-	SenderID       []byte
-	EchoedRandomID []byte
-	Payload        []byte
-	RandomID       []byte
-}
 
 func GetMessageSize(x MessageType) int {
 	var size int
@@ -87,91 +75,36 @@ func GetMessageSize(x MessageType) int {
 // <-  1 Bytes    <- 20 Bytes  <- 20 Bytes       <- X Bytes  <- 20 Bytes
 //  MultiplexKey      SenderID    EchoedRandomId    Payload     RandomID
 func Process(raw []byte) (Message, error) {
-	var message Message
-	mKey := MessageType(raw[0])
-	switch mKey {
-	case FindNodeReq:
-		processFindNodeRequest(&message, raw[1:])
-	case FindNodeRes:
-		processFindNodeResponse(&message, raw[1:])
-
+	message := Message(raw)
+	if _, err := message.MultiplexKey(); err != nil {
+		return nil, err
 	}
 
 	return message, nil
 }
 
-func processFindNodeRequest(m *Message, p []byte) error {
-	if err := checkBounds(p, FindNodeReqSize); err != nil {
-		return err
-	}
-	offsetSender := 0
-	offsetLookupId := 20
-	offsetRandomId := 40
+func ToKademliaMessage(msg Message, km KademliaMessage) {
 
-	m.MultiplexKey = FindNodeReq
-	m.SenderID = p[offsetSender:offsetLookupId]
-	m.Payload = p[offsetLookupId:offsetRandomId]
-	m.RandomID = p[offsetRandomId:len(p)]
-
-	return nil
-
-}
-
-func processFindNodeResponse(m *Message, p []byte) error {
-	l := len(p)
-
-	offsetSender := 0
-	offsetEchoRandomId := 20
-	offsetPayload := 40
-	offsetRandomId := len(p) - 20
-
-	// ensure there is space for senderId and echo random id
-	if l < offsetPayload - 1 {
-		return errors.New(ErrNoMatchMessageSize)
-	}
-
-	// good. now ensure there is space for at least one contact and a randomId (every contact is 38 bytes long)
-	contactL := 38
-	if l < (offsetPayload + contactL + 20) {
-		return errors.New(ErrNoMatchMessageSize)
-	}
-
-
-	m.MultiplexKey = FindNodeRes
-	m.SenderID = p[offsetSender:offsetEchoRandomId]
-	m.EchoedRandomID = p[offsetEchoRandomId:offsetPayload]
-	m.Payload = p[offsetPayload: offsetRandomId]
-	m.RandomID = p[offsetRandomId:]
-
-	return nil
-}
-
-func checkBounds(p []byte, size int) error {
-	// account for the multiplex key not to be there at this point
-	if len(p) != size -1 {
-		return errors.New(ErrNoMatchMessageSize)
-	}
-
-	return nil
-}
-
-func ToKademliaMessage(msg *Message, km KademliaMessage) {
+	rid, _ := msg.RandomID()
+	eid, _ := msg.EchoRandomID()
+	sid, _ := msg.SenderID()
+	p, _ := msg.Payload()
 
 	switch v := km.(type) {
 	case *FindNodeRequest:
 		*v = FindNodeRequest{
-			RandomID:     ToStringId(msg.RandomID),
-			EchoRandomID: ToStringId(msg.EchoedRandomID),
-			SenderID:     ToStringId(msg.SenderID),
-			Payload:      ToStringId(msg.Payload),
+			RandomID:     ToStringId(rid),
+			EchoRandomID: ToStringId(eid),
+			SenderID:     ToStringId(sid),
+			Payload:      ToStringId(p),
 		}
 	case *FindNodeResponse:
-		if c, err := processContacts(msg.Payload); err == nil {
+		if c, err := processContacts(p); err == nil {
 			*v = FindNodeResponse{
-				SenderID:     ToStringId(msg.SenderID),
-				EchoRandomID: ToStringId(msg.EchoedRandomID),
+				SenderID:     ToStringId(sid),
+				EchoRandomID: ToStringId(eid),
 				Payload:      c,
-				RandomID:     ToStringId(msg.RandomID),
+				RandomID:     ToStringId(rid),
 			}
 		}
 
@@ -243,22 +176,6 @@ func toContact(b []byte) (gokad.Contact, error) {
 
 }
 
-func ProcessMessage(msg *Message) KademliaMessage {
-	var out KademliaMessage
-	switch msg.MultiplexKey {
-	case FindNodeReq:
-		var nr FindNodeRequest
-		out = &nr
-		ToKademliaMessage(msg, out)
-	case FindNodeRes:
-		var nr FindNodeResponse
-		out = &nr
-		ToKademliaMessage(msg, out)
-
-	}
-
-	return out
-}
 
 func IsValid(msgType MessageType) bool {
 	return IsRequest(msgType) || IsResponse(msgType)

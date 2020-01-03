@@ -10,6 +10,11 @@ import (
 
 const HandlerNotFoundErr = "Handler Not Found"
 
+type RemoteMessage interface {
+	Host() string
+	Address() net.Addr
+}
+
 type RpcHandler func(conn conn.KadWriter, req *request.Request)
 
 type KadMux struct {
@@ -19,8 +24,8 @@ type KadMux struct {
 	newWriterFunc func(addr net.Addr) conn.KadWriter
 	// channels
 	dispatchRequest chan WorkRequest
-	onResponse      chan messages.CompleteMessage
-	onRequest       chan messages.CompleteMessage
+	onResponse      chan messages.Message
+	onRequest       chan *request.Request
 	stopReceiver    chan chan error
 	stopReply       chan chan error
 	stopDispatcher  chan bool
@@ -34,8 +39,8 @@ func NewMux() *KadMux {
 		stopDispatcher:  make(chan bool),
 		dispatchRequest: make(chan WorkRequest),
 		handlers:        make(map[messages.MessageType]RpcHandler),
-		onRequest:       make(chan messages.CompleteMessage),
-		onResponse:      make(chan messages.CompleteMessage),
+		onRequest:       make(chan *request.Request),
+		onResponse:      make(chan messages.Message),
 		exit:            make(chan error),
 	}
 }

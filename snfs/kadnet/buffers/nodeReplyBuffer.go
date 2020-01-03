@@ -86,6 +86,27 @@ func (n *NodeReplyBuffer) GetMessage(id string) (chan messages.Message, error) {
 	return query.response, nil
 }
 
+func (n *NodeReplyBuffer) Read(id string, msg messages.Message) error {
+	if !n.IsOpen() {
+		return errors.New(ClosedBufferErr)
+	}
+
+	query := bufferQuery{id, make(chan messages.Message)}
+	n.subscribe <- query
+
+	msg = <- query.response
+
+	return nil
+}
+
+func (n *NodeReplyBuffer) Write(msg messages.Message) (int, error) {
+	if !n.IsOpen() {
+		return 0, errors.New(ClosedBufferErr)
+	}
+
+	return 0, nil
+}
+
 func (n *NodeReplyBuffer) accept() {
 	pending := make(map[string]chan messages.Message)
 
@@ -98,11 +119,11 @@ func (n *NodeReplyBuffer) accept() {
 			c, ok := pending[senderId]
 			if ok {
 				c <- m
+				delete(pending, senderId)
 			} else {
 				out := make(chan messages.Message, 1)
 				pending[senderId] = out
 				out <- m
-
 			}
 
 		case sub := <-n.subscribe:
@@ -110,6 +131,7 @@ func (n *NodeReplyBuffer) accept() {
 			if ok {
 				msg := <-c
 				sub.response <- msg
+				delete(pending, sub.id)
 			} else {
 				out := make(chan messages.Message, 1)
 				pending[sub.id] = out

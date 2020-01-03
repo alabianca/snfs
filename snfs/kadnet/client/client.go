@@ -5,6 +5,7 @@ import (
 	"github.com/alabianca/snfs/snfs/kadnet/buffers"
 	"github.com/alabianca/snfs/snfs/kadnet/messages"
 	"github.com/alabianca/snfs/snfs/kadnet/request"
+	"github.com/alabianca/snfs/snfs/kadnet/response"
 )
 
 const WrongResponseTypeErr = "Wrong Response"
@@ -14,22 +15,34 @@ type Client struct {
 	DoReq chan<- *request.Request
 }
 
-func (c *Client) FindNode(contact gokad.Contact, lookupId string) (chan messages.Message, error) {
+func (c *Client) FindNode(contact gokad.Contact, lookupId string) (*response.Response, error) {
 	defer c.sendPingReply(contact)
 	return c.findNode(contact, lookupId)
 }
 
-func (c *Client) findNode(contact gokad.Contact, lookupId string) (chan messages.Message, error) {
-	req := request.New(contact, messages.NewFindNodeRequest(c.ID, "", lookupId))
+func (c *Client) findNode(contact gokad.Contact, lookupId string) (*response.Response, error) {
+	fnr := messages.FindNodeRequest{
+		SenderID:     c.ID	,
+		Payload:      lookupId,
+		RandomID:     gokad.GenerateRandomID().String(),
+	}
 
-	return c.do(req)
+	b, err := fnr.Bytes()
+	if err != nil {
+		return nil, err
+	}
+
+	req := request.New(contact, b)
+	res := response.New(contact, buffers.GetNodeReplyBuffer())
+
+	c.do(req)
+
+	return res, nil
 
 }
 
-func (c *Client) do(req *request.Request) (chan messages.Message, error) {
+func (c *Client) do(req *request.Request) {
 	c.DoReq <- req
-	buf := buffers.GetNodeReplyBuffer()
-	return  buf.GetMessage(req.Host())
 }
 
 func (c *Client) sendPingReply(contact gokad.Contact) {
