@@ -65,9 +65,9 @@ func (n *NodeReplyBuffer) IsOpen() bool {
 	return n.active
 }
 
-func (n *NodeReplyBuffer) Read(id string, msg messages.KademliaMessage) error {
+func (n *NodeReplyBuffer) Read(id string, msg messages.KademliaMessage) (int, error) {
 	if !n.IsOpen() {
-		return errors.New(ClosedBufferErr)
+		return 0, errors.New(ClosedBufferErr)
 	}
 
 	query := bufferQuery{id, make(chan messages.Message, 1)}
@@ -76,7 +76,7 @@ func (n *NodeReplyBuffer) Read(id string, msg messages.KademliaMessage) error {
 	buf := <- query.response
 	messages.ToKademliaMessage(buf, msg)
 
-	return nil
+	return len(buf), nil
 }
 
 func (n *NodeReplyBuffer) Write(msg messages.Message) (int, error) {

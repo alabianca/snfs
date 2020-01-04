@@ -9,7 +9,7 @@ type Buffer interface {
 }
 
 type BufferReader interface {
-	Read(id string, km messages.KademliaMessage) error
+	Read(id string, km messages.KademliaMessage) (int, error)
 }
 
 type BufferWriter interface {

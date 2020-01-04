@@ -1,6 +1,8 @@
 package kadnet
 
 import (
+	"github.com/alabianca/gokad"
+	"log"
 	"net"
 	"strconv"
 
@@ -83,32 +85,33 @@ func (s *Server) doRequest(req *request.Request, w conn.KadWriter) {
 // RPC Handlers
 func (s *Server) onFindNode() kadmux.RpcHandler {
 	return func(conn conn.KadWriter, req *request.Request) {
-		//fnr, ok := req.Body.(*messages.FindNodeRequest)
-		//if !ok {
-		//	return
-		//}
-		//
-		//dht := GetDHT()
-		//id, err := gokad.From(fnr.Payload)
-		//if err != nil {
-		//	return
-		//}
-		//
-		//contacts := dht.FindNode(id)
-		//
-		//res := messages.FindNodeResponse{
-		//	SenderID:     dht.Table.ID.String(),
-		//	EchoRandomID: fnr.RandomID,
-		//	Payload:      contacts,
-		//	RandomID:     gokad.GenerateRandomID().String(),
-		//}
-		//
-		//bts, err := res.Bytes()
-		//if err != nil {
-		//	return
-		//}
-		//
-		//if _, err := conn.Write(bts); err != nil {
-		//}
+		mux, _ := req.Body.MultiplexKey()
+		senderID, _ := req.Body.SenderID()
+		randomId, _ := req.Body.RandomID()
+		payload, _ := req.Body.Payload()
+		dht := GetDHT()
+
+		contacts := dht.FindNode(payload)
+
+		res := messages.FindNodeResponse{
+			SenderID:     dht.Table.ID.String(),
+			EchoRandomID: gokad.ID(randomId).String(),
+			Payload:      contacts,
+			RandomID:     gokad.GenerateRandomID().String(),
+		}
+		log.Printf("%d: (%s)  RandomID: (%s) Payload: (%s) Size: (%d)\n",
+			mux,
+			senderID.String(),
+			gokad.ID(randomId).String(),
+			gokad.ID(payload).String(),
+			len(req.Body))
+
+		bts, err := res.Bytes()
+		if err != nil {
+			log.Printf("Error %s\n", err)
+			return
+		}
+
+		conn.Write(bts)
 	}
 }

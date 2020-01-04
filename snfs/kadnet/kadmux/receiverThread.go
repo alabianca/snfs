@@ -2,12 +2,10 @@ package kadmux
 
 import (
 	"github.com/alabianca/gokad"
-	"github.com/alabianca/snfs/snfs/kadnet/request"
-	"net"
-	"time"
-
 	conn2 "github.com/alabianca/snfs/snfs/kadnet/conn"
 	"github.com/alabianca/snfs/snfs/kadnet/messages"
+	"github.com/alabianca/snfs/snfs/kadnet/request"
+	"net"
 )
 
 const maxMsgBuffer = 100
@@ -34,19 +32,14 @@ func NewReceiverThread(res chan <-messages.Message, req chan<- *request.Request,
 
 func (r *ReceiverThread) Run(exit <-chan chan error) {
 	receivedMsgs := make([]*readResult, 0)
-	var next time.Time
 	var readDone chan readResult // non-nil channel means we are currently doing IO
 	for {
 
-		var readDelay time.Duration
-		if now := time.Now(); next.After(now) {
-			readDelay = next.Sub(now)
-		}
-
-		var startRead <-chan time.Time
+		var startRead chan bool
 		// only start reading again if currently not reading
 		if readDone == nil && len(receivedMsgs) < maxMsgBuffer {
-			startRead = time.After(readDelay)
+			startRead = make(chan bool, 1)
+			startRead <- true
 		}
 
 		// decide where to send the message
@@ -61,7 +54,7 @@ func (r *ReceiverThread) Run(exit <-chan chan error) {
 			nextMessage = next.message
 			key, _ := nextMessage.MultiplexKey()
 			sender, _ := nextMessage.SenderID()
-			if udpAddr, err := net.ResolveUDPAddr("udp", next.remote.String()); err != nil && !messages.IsResponse(key) {
+			if udpAddr, err := net.ResolveUDPAddr("udp", next.remote.String()); err == nil && !messages.IsResponse(key) {
 				fanoutRequest = r.fanoutRequest
 				contact := gokad.Contact{
 					ID:   sender,
@@ -84,11 +77,10 @@ func (r *ReceiverThread) Run(exit <-chan chan error) {
 			return
 
 		case result := <-readDone:
+			// set to nil so we know we should start reading again in the next cycle
 			readDone = nil
-			if result.err != nil {
-				// try again
-				next = time.Now().Add(time.Microsecond * 100)
-			} else {
+			if result.err == nil {
+				// if no error buffer the message. Otherwise just drop it
 				receivedMsgs = append(receivedMsgs, &result)
 			}
 

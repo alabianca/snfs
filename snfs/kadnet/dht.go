@@ -1,6 +1,9 @@
 package kadnet
 
 import (
+	"github.com/alabianca/snfs/snfs/kadnet/buffers"
+	"github.com/alabianca/snfs/snfs/kadnet/messages"
+	"log"
 	"net"
 	"sync"
 
@@ -44,23 +47,23 @@ func (dht *DHT) Bootstrap(port int, ip, idHex string) (*gokad.Contact, int, erro
 }
 
 func (dht *DHT) NodeLookup(rpc RPC, id gokad.ID) {
-	// buf := buffers.GetNodeReplyBuffer()
-	// buf.Open()
-	// defer buf.Close()
+	buf := buffers.GetNodeReplyBuffer()
+	buf.Open()
+	defer buf.Close()
 	// contacts := make([]gokad.Contact, 0)
-	// alphaNodes := dht.getAlphaNodes(3, id)
-	// strID := id.String()
-	// recContacts := treemap.NewMap(compareDistances)
+	alphaNodes := dht.getAlphaNodes(3, id)
+	res, err := rpc.FindNode(alphaNodes[0], id.String())
+	if err != nil {
+		log.Printf("Error Node Lookup %s\n", err)
+		return
+	}
+	fnr := messages.FindNodeResponse{}
+	if _, err := res.Read(&fnr); err != nil {
+		log.Printf("Error reading %s\n", err)
+		return
+	}
 
-	// for _, c := range alphaNodes {
-	// 	go func(contact gokad.Contact) {
-	// 		res, err := rpc.FindNode(contact, strID)
-	// 		if err == nil {
-	// 			contacts = append(contacts, res...)
-	// 		} else {
-	// 		}
-	// 	}(c)
-	// }
+	log.Printf("No Error %v\n", fnr)
 }
 
 func (dht *DHT) getAlphaNodes(alpha int, id gokad.ID) []gokad.Contact {

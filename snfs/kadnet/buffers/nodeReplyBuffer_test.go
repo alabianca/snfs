@@ -31,7 +31,7 @@ func TestNodeReplyBuffer_Open(t *testing.T) {
 
 func TestNodeReplyBuffer_ReadWriteOnClosedBuffer(t *testing.T) {
 	nrb := buffers.NewNodeReplyBuffer()
-	readErr := nrb.Read("akjdflalfdj", &messages.FindNodeRequest{})
+	_, readErr := nrb.Read("akjdflalfdj", &messages.FindNodeRequest{})
 	if readErr.Error() != buffers.ClosedBufferErr {
 		t.Fatalf("Expected read %s Error, but got %s\n", buffers.ClosedBufferErr, readErr.Error())
 	}
@@ -65,7 +65,7 @@ func TestNodeReplyBuffer_Read(t *testing.T) {
 	}
 
 	fnrOut := &messages.FindNodeResponse{}
-	rerr := nrb.Read("8bc8082329609092bf86dea25cf7784cd708cc5d", fnrOut)
+	_, rerr := nrb.Read("8bc8082329609092bf86dea25cf7784cd708cc5d", fnrOut)
 	if rerr != nil {
 		t.Fatalf("Expected read error to be nil, but got %s\n", rerr)
 	}
@@ -90,7 +90,7 @@ func TestNodeReplyBuffer_AsyncRead(t *testing.T) {
 
 	fnrOut := &messages.FindNodeResponse{}
 	go func(c context.CancelFunc) {
-		err := nrb.Read("8bc8082329609092bf86dea25cf7784cd708cc5d", fnrOut)
+		_, err := nrb.Read("8bc8082329609092bf86dea25cf7784cd708cc5d", fnrOut)
 		if err != nil {
 			t.Fatalf("Expected read error to be nil, but got %s\n", err)
 		}
