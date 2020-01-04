@@ -2,7 +2,6 @@ package buffers
 
 import (
 	"errors"
-	"fmt"
 	"github.com/alabianca/snfs/snfs/kadnet/messages"
 	"sync"
 	"time"
@@ -15,7 +14,7 @@ var nodeReplyBufferInstance *NodeReplyBuffer
 var onceRBuf sync.Once
 func GetNodeReplyBuffer() *NodeReplyBuffer {
 	onceRBuf.Do(func() {
-		nodeReplyBufferInstance = newNodeReplyBuffer()
+		nodeReplyBufferInstance = NewNodeReplyBuffer()
 	})
 
 	return nodeReplyBufferInstance
@@ -36,7 +35,7 @@ type NodeReplyBuffer struct {
 	subscribe  chan bufferQuery
 }
 
-func newNodeReplyBuffer() *NodeReplyBuffer {
+func NewNodeReplyBuffer() *NodeReplyBuffer {
 	return &NodeReplyBuffer{
 		messages:    make(map[string]messages.Message),
 		active:      false,
@@ -66,35 +65,16 @@ func (n *NodeReplyBuffer) IsOpen() bool {
 	return n.active
 }
 
-func (n *NodeReplyBuffer) Put(c messages.Message) bool {
-	if !n.IsOpen() {
-		return false
-	}
-
-	n.newMessage <- c
-
-	return true
-}
-
-func (n *NodeReplyBuffer) GetMessage(id string) (chan messages.Message, error) {
-	if !n.IsOpen() {
-		return nil, errors.New(ClosedBufferErr)
-	}
-	query := bufferQuery{id, make(chan messages.Message)}
-	n.subscribe <- query
-
-	return query.response, nil
-}
-
-func (n *NodeReplyBuffer) Read(id string, msg messages.Message) error {
+func (n *NodeReplyBuffer) Read(id string, msg messages.KademliaMessage) error {
 	if !n.IsOpen() {
 		return errors.New(ClosedBufferErr)
 	}
 
-	query := bufferQuery{id, make(chan messages.Message)}
+	query := bufferQuery{id, make(chan messages.Message, 1)}
 	n.subscribe <- query
 
-	msg = <- query.response
+	buf := <- query.response
+	messages.ToKademliaMessage(buf, msg)
 
 	return nil
 }
@@ -104,7 +84,8 @@ func (n *NodeReplyBuffer) Write(msg messages.Message) (int, error) {
 		return 0, errors.New(ClosedBufferErr)
 	}
 
-	return 0, nil
+	n.newMessage <- msg
+	return len(msg), nil
 }
 
 func (n *NodeReplyBuffer) accept() {
@@ -114,7 +95,11 @@ func (n *NodeReplyBuffer) accept() {
 
 		select {
 		case m := <-n.newMessage:
-			senderId := fmt.Sprintf("%x", m.SenderID)
+			id, err := m.SenderID()
+			if err != nil {
+				continue
+			}
+			senderId := id.String()
 			n.messages[senderId] = m
 			c, ok := pending[senderId]
 			if ok {
@@ -133,8 +118,7 @@ func (n *NodeReplyBuffer) accept() {
 				sub.response <- msg
 				delete(pending, sub.id)
 			} else {
-				out := make(chan messages.Message, 1)
-				pending[sub.id] = out
+				pending[sub.id] = sub.response
 			}
 
 		case <-n.exit:
