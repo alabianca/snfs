@@ -2,6 +2,7 @@ package buffers
 
 import (
 	"errors"
+	"github.com/alabianca/gokad"
 	"github.com/alabianca/snfs/snfs/kadnet/messages"
 	"sync"
 	"time"
@@ -25,6 +26,10 @@ type bufferQuery struct {
 	response chan messages.Message
 }
 
+// NodeReplyBuffer stores FindNodeResponses to FindNodeRequests.
+// NodeReplyBuffer implements the buffers.Buffer interface.
+// When a response message is written, it is internally stored in a map
+// Where the key is the id and echo random id combined.
 type NodeReplyBuffer struct {
 	messages    map[string]messages.Message
 	active      bool
@@ -65,6 +70,9 @@ func (n *NodeReplyBuffer) IsOpen() bool {
 	return n.active
 }
 
+// Read reads the response message into msg
+// Make sure that id is the combination of sender id + random id of the request that sent it.
+// This ensures that we get the response to the request we sent
 func (n *NodeReplyBuffer) Read(id string, msg messages.KademliaMessage) (int, error) {
 	if !n.IsOpen() {
 		return 0, errors.New(ClosedBufferErr)
@@ -99,15 +107,20 @@ func (n *NodeReplyBuffer) accept() {
 			if err != nil {
 				continue
 			}
-			senderId := id.String()
-			n.messages[senderId] = m
-			c, ok := pending[senderId]
+			rid, err := m.EchoRandomID()
+			if err != nil {
+				continue
+			}
+			// combine sender id and echo random id to ensure reader will really get back the message we asked for
+			key := id.String() + gokad.ID(rid).String()
+			n.messages[key] = m
+			c, ok := pending[key]
 			if ok {
 				c <- m
-				delete(pending, senderId)
+				delete(pending, key)
 			} else {
 				out := make(chan messages.Message, 1)
-				pending[senderId] = out
+				pending[key] = out
 				out <- m
 			}
 

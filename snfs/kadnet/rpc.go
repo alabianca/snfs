@@ -23,12 +23,12 @@ type RpcManager struct {
 	server *Server
 }
 
-func NewRPCManager(address string, port int) *RpcManager {
+func NewRPCManager(dht *DHT, address string, port int) *RpcManager {
 
-	server := NewServer(GetDHT(), address, port)
+	server := NewServer(dht, address, port)
 
 	return &RpcManager{
-		dht:    GetDHT(),
+		dht:    dht,
 		server: server,
 	}
 }
@@ -50,24 +50,31 @@ func NewRPCManager(address string, port int) *RpcManager {
 @Source: Implementation of the Kademlia Hash Table by Bruno Spori Semester Thesis
 https://pub.tik.ee.ethz.ch/students/2006-So/SA-2006-19.pdf
 **/
-func (rpc *RpcManager) Bootstrap(port int, ip, idHex string) {
+func (rpc *RpcManager) Bootstrap(port int, ip, idHex string) (error) {
 	// 1. Insert gateway into k-bucket
 	_, _, err := rpc.dht.Bootstrap(port, ip, idHex)
 	// at capacity means we ping the head to see if it is still active. at this point contact is not inserted
 	// c is the head
 	if err != nil && err.Error() == gokad.ErrBucketAtCapacity {
-		return
+		return err
 	}
 	if err != nil {
-		return
+		return err
 	}
 
 	// start node lookup for own id
 	ownID := rpc.dht.Table.ID
 	rpc.bootstrap(ownID)
-	//nlr := newFindNodeRequest(ownID.String(), "", ownID.String())
-	//rpc.onRequest <- CompleteMessage{nlr, nil}
 
+	return nil
+
+}
+
+// seed adds a list of contacts to the dht's routing table. Used for testing purposes only
+func (rpc *RpcManager) Seed(contacts ...gokad.Contact) {
+	for _, c := range contacts {
+		rpc.dht.Insert(c)
+	}
 }
 
 func (rpc *RpcManager) bootstrap(id gokad.ID) {
@@ -88,7 +95,6 @@ func (rpc *RpcManager) Name() string {
 }
 
 func (rpc *RpcManager) Run() error {
-
 	if err := rpc.server.Listen(); err != nil {
 		return err
 	}

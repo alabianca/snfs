@@ -87,7 +87,7 @@ func startService(s server.Service) {
 }
 
 func resolveServices(s *server.Server) map[string]server.Service {
-	rpc := kadnet.NewRPCManager(s.Addr, s.Port)
+	rpc := kadnet.NewRPCManager(kadnet.GetDHT(), s.Addr, s.Port)
 	storage := fs.NewManager()
 	dm := discovery.NewManager(discovery.MdnsStrategy(configureMDNS(s.Port, s.Addr, rpc.ID())))
 	cc := client.NewConnectivityService(dm, storage, rpc)

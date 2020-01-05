@@ -33,7 +33,7 @@ func (c *Client) findNode(contact gokad.Contact, lookupId string) (*response.Res
 	}
 
 	req := request.New(contact, b)
-	res := response.New(contact, buffers.GetNodeReplyBuffer())
+	res := response.New(contact, fnr.RandomID, buffers.GetNodeReplyBuffer())
 
 	c.do(req)
 

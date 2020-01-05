@@ -11,12 +11,14 @@ import (
 type Response struct {
 	Contact gokad.Contact
 	Body buffers.Buffer
+	matcher string
 }
 
-func New(c gokad.Contact, reader buffers.Buffer) *Response {
+func New(c gokad.Contact, matcher string, reader buffers.Buffer) *Response {
 	return &Response{
 		Contact: c,
 		Body:    reader,
+		matcher: matcher,
 	}
 }
 
@@ -31,5 +33,5 @@ func (r *Response) Host() string {
 }
 
 func (r *Response) Read(km messages.KademliaMessage) (int, error) {
-	return r.Body.Read(r.Contact.ID.String(), km)
+	return r.Body.Read(r.Contact.ID.String() + r.matcher, km)
 }

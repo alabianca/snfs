@@ -65,7 +65,7 @@ func TestNodeReplyBuffer_Read(t *testing.T) {
 	}
 
 	fnrOut := &messages.FindNodeResponse{}
-	_, rerr := nrb.Read("8bc8082329609092bf86dea25cf7784cd708cc5d", fnrOut)
+	_, rerr := nrb.Read("8bc8082329609092bf86dea25cf7784cd708cc5d" + "28f787e3b60f99fb29b14266c40b536d6037307e", fnrOut)
 	if rerr != nil {
 		t.Fatalf("Expected read error to be nil, but got %s\n", rerr)
 	}
@@ -90,7 +90,7 @@ func TestNodeReplyBuffer_AsyncRead(t *testing.T) {
 
 	fnrOut := &messages.FindNodeResponse{}
 	go func(c context.CancelFunc) {
-		_, err := nrb.Read("8bc8082329609092bf86dea25cf7784cd708cc5d", fnrOut)
+		_, err := nrb.Read("8bc8082329609092bf86dea25cf7784cd708cc5d" + "28f787e3b60f99fb29b14266c40b536d6037307e", fnrOut)
 		if err != nil {
 			t.Fatalf("Expected read error to be nil, but got %s\n", err)
 		}
