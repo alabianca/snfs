@@ -6,12 +6,14 @@ import (
 	"github.com/alabianca/snfs/snfs/kadnet/messages"
 	"net"
 	"strconv"
+	"time"
 )
 
 type Response struct {
-	Contact gokad.Contact
-	Body buffers.Buffer
-	matcher string
+	Contact     gokad.Contact
+	Body        buffers.Buffer
+	matcher     string
+	readTimeout time.Duration
 }
 
 func New(c gokad.Contact, matcher string, reader buffers.Buffer) *Response {
@@ -32,6 +34,15 @@ func (r *Response) Host() string {
 	return r.Contact.ID.String()
 }
 
+func (r *Response) ReadTimeout(dur time.Duration) {
+	r.readTimeout = dur
+}
+
 func (r *Response) Read(km messages.KademliaMessage) (int, error) {
-	return r.Body.Read(r.Contact.ID.String() + r.matcher, km)
+	defer r.resetTimeout()
+	return r.Body.Read(r.Contact.ID.String()+r.matcher, km, r.readTimeout)
+}
+
+func (r *Response) resetTimeout() {
+	r.readTimeout = time.Duration(0)
 }

@@ -73,18 +73,26 @@ func (n *NodeReplyBuffer) IsOpen() bool {
 // Read reads the response message into msg
 // Make sure that id is the combination of sender id + random id of the request that sent it.
 // This ensures that we get the response to the request we sent
-func (n *NodeReplyBuffer) Read(id string, msg messages.KademliaMessage) (int, error) {
+func (n *NodeReplyBuffer) Read(id string, msg messages.KademliaMessage, timeout time.Duration) (int, error) {
 	if !n.IsOpen() {
 		return 0, errors.New(ClosedBufferErr)
+	}
+
+	var exit chan<- <-chan time.Time
+	if timeout != EmptyTimeout {
+		exit = make(chan<- <-chan time.Time, 1)
 	}
 
 	query := bufferQuery{id, make(chan messages.Message, 1)}
 	n.subscribe <- query
 
-	buf := <- query.response
-	messages.ToKademliaMessage(buf, msg)
-
-	return len(buf), nil
+	select {
+	case exit <- time.After(timeout):
+		return 0, errors.New(TimeoutErr)
+	case buf := <- query.response:
+		messages.ToKademliaMessage(buf, msg)
+		return len(buf), nil
+	}
 }
 
 func (n *NodeReplyBuffer) Write(msg messages.Message) (int, error) {
