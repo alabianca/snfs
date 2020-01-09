@@ -40,7 +40,12 @@ func (r *Response) ReadTimeout(dur time.Duration) {
 
 func (r *Response) Read(km messages.KademliaMessage) (int, error) {
 	defer r.resetTimeout()
-	return r.Body.Read(r.Contact.ID.String()+r.matcher, km, r.readTimeout)
+	reader := r.Body.NewReader(r.Contact.ID.String() + r.matcher)
+
+	if r.readTimeout != time.Duration(0) {
+		reader.SetDeadline(r.readTimeout)
+	}
+	return reader.Read(km)
 }
 
 func (r *Response) resetTimeout() {

@@ -9,8 +9,8 @@ const EmptyTimeout = time.Duration(0)
 
 type Buffer interface {
 	Close()
-	BufferWriter
-	BufferReader
+	NewReader(id string) Reader
+	NewWriter() Writer
 }
 
 type BufferReader interface {
@@ -20,3 +20,14 @@ type BufferReader interface {
 type BufferWriter interface {
 	Write(msg messages.Message) (int, error)
 }
+
+type Reader interface {
+	Read(km messages.KademliaMessage) (int, error)
+	SetDeadline(t time.Duration)
+}
+
+type Writer interface {
+	Write(msg messages.Message) (int, error)
+}
+
+

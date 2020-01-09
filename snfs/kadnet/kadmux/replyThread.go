@@ -58,7 +58,8 @@ func (r *ReplyThread) tempStoreMsg(km messages.Message) {
 	key, _ := km.MultiplexKey()
 	buf := r.getBuffer(key)
 
-	buf.Write(km)
+	writer := buf.NewWriter()
+	writer.Write(km)
 }
 
 func (r *ReplyThread) getBuffer(key messages.MessageType) buffers.Buffer {

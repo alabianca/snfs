@@ -1,9 +1,8 @@
-package buffers_test
+package buffers
 
 import (
 	"context"
 	"github.com/alabianca/gokad"
-	"github.com/alabianca/snfs/snfs/kadnet/buffers"
 	"github.com/alabianca/snfs/snfs/kadnet/messages"
 	"net"
 	"reflect"
@@ -13,7 +12,7 @@ import (
 )
 
 func TestNodeReplyBuffer_Open(t *testing.T) {
-	nrb := buffers.NewNodeReplyBuffer()
+	nrb := NewNodeReplyBuffer()
 	if nrb.IsOpen() {
 		t.Fatalf("Expected node reply buffer to be closed initially")
 	}
@@ -30,23 +29,26 @@ func TestNodeReplyBuffer_Open(t *testing.T) {
 }
 
 func TestNodeReplyBuffer_ReadWriteOnClosedBuffer(t *testing.T) {
-	nrb := buffers.NewNodeReplyBuffer()
-	_, readErr := nrb.Read("akjdflalfdj", &messages.FindNodeRequest{})
-	if readErr.Error() != buffers.ClosedBufferErr {
-		t.Fatalf("Expected read %s Error, but got %s\n", buffers.ClosedBufferErr, readErr.Error())
+	nrb := NewNodeReplyBuffer()
+	reader := nrb.NewReader("akjdflalfdj")
+	_, readErr := reader.Read(&messages.FindNodeRequest{})
+	if readErr.Error() != ClosedBufferErr {
+		t.Fatalf("Expected read %s Error, but got %s\n", ClosedBufferErr, readErr.Error())
 	}
 
-	_, writeErr := nrb.Write([]byte{})
-	if writeErr.Error() != buffers.ClosedBufferErr {
-		t.Fatalf("Expected write %s Error, but got %s\n", buffers.ClosedBufferErr, writeErr.Error())
+	writer := nrb.NewWriter()
+	_, writeErr := writer.Write([]byte{})
+	if writeErr.Error() != ClosedBufferErr {
+		t.Fatalf("Expected write %s Error, but got %s\n", ClosedBufferErr, writeErr.Error())
 	}
 
 }
 
 func TestNodeReplyBuffer_Read(t *testing.T) {
-	nrb := buffers.NewNodeReplyBuffer()
+	nrb := NewNodeReplyBuffer()
 	// open the buffer for reading and writing
 	nrb.Open()
+	defer nrb.Close()
 	fnr := messages.FindNodeResponse{
 		SenderID:     "8bc8082329609092bf86dea25cf7784cd708cc5d",
 		EchoRandomID: "28f787e3b60f99fb29b14266c40b536d6037307e",
@@ -55,7 +57,8 @@ func TestNodeReplyBuffer_Read(t *testing.T) {
 	}
 
 	msg, _ := fnr.Bytes()
-	n, err := nrb.Write(msg)
+	writer := nrb.NewWriter()
+	n, err := writer.Write(msg)
 	if n != len(msg) {
 		t.Fatalf("Expected %d to be written, but got %d\n", len(msg), n)
 	}
@@ -65,7 +68,8 @@ func TestNodeReplyBuffer_Read(t *testing.T) {
 	}
 
 	fnrOut := &messages.FindNodeResponse{}
-	_, rerr := nrb.Read("8bc8082329609092bf86dea25cf7784cd708cc5d" + "28f787e3b60f99fb29b14266c40b536d6037307e", fnrOut)
+	reader := nrb.NewReader("8bc8082329609092bf86dea25cf7784cd708cc5d" + "28f787e3b60f99fb29b14266c40b536d6037307e")
+	_, rerr := reader.Read(fnrOut)
 	if rerr != nil {
 		t.Fatalf("Expected read error to be nil, but got %s\n", rerr)
 	}
@@ -77,10 +81,11 @@ func TestNodeReplyBuffer_Read(t *testing.T) {
 }
 
 func TestNodeReplyBuffer_AsyncRead(t *testing.T) {
-	nrb := buffers.NewNodeReplyBuffer()
+	nrb := NewNodeReplyBuffer()
 	// open the buffer for reading and writing
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second * 5)
 	nrb.Open()
+	defer nrb.Close()
 	fnr := messages.FindNodeResponse{
 		SenderID:     "8bc8082329609092bf86dea25cf7784cd708cc5d",
 		EchoRandomID: "28f787e3b60f99fb29b14266c40b536d6037307e",
@@ -90,7 +95,8 @@ func TestNodeReplyBuffer_AsyncRead(t *testing.T) {
 
 	fnrOut := &messages.FindNodeResponse{}
 	go func(c context.CancelFunc) {
-		_, err := nrb.Read("8bc8082329609092bf86dea25cf7784cd708cc5d" + "28f787e3b60f99fb29b14266c40b536d6037307e", fnrOut)
+		reader := nrb.NewReader("8bc8082329609092bf86dea25cf7784cd708cc5d" + "28f787e3b60f99fb29b14266c40b536d6037307e")
+		_, err := reader.Read(fnrOut)
 		if err != nil {
 			t.Fatalf("Expected read error to be nil, but got %s\n", err)
 		}
@@ -100,7 +106,8 @@ func TestNodeReplyBuffer_AsyncRead(t *testing.T) {
 
 	time.Sleep(time.Millisecond * 200) // let some time pass
 	msg, _ := fnr.Bytes()
-	nrb.Write(msg)
+	writer := nrb.NewWriter()
+	writer.Write(msg)
 
 	<-ctx.Done()
 	if !reflect.DeepEqual(fnrOut, &fnr) {
@@ -109,10 +116,11 @@ func TestNodeReplyBuffer_AsyncRead(t *testing.T) {
 }
 
 func TestNodeReplyBuffer_Close(t *testing.T) {
+	nrb := NewNodeReplyBuffer()
 	x := runtime.NumGoroutine()
-	nrb := buffers.NewNodeReplyBuffer()
 	nrb.Open()
 	nrb.Close()
+
 
 	if nrb.IsOpen() {
 		t.Fatalf("Expected buffer to be closed after .Close")
@@ -122,6 +130,26 @@ func TestNodeReplyBuffer_Close(t *testing.T) {
 	if num != x {
 		t.Fatalf("Expected all go routines to be done after .Close, but %d are still running", num)
 	}
+}
+
+func TestNodeReplyBufferReadDeadline(t *testing.T) {
+	nrb := NewNodeReplyBuffer()
+	nrb.Open()
+	defer nrb.Close()
+
+	reader := nrb.NewReader("nonexistingid")
+	reader.SetDeadline(time.Millisecond * 200)
+
+	var fnr messages.FindNodeResponse
+	n, err := reader.Read(&fnr)
+	if n > 0 {
+		t.Fatalf("Expected n to be %d, but got %d\n", 0, n)
+	}
+
+	if err.Error() != TimeoutErr {
+		t.Fatalf("Expected the read to timeout but got %s\n", err)
+	}
+
 }
 
 func generateContact(id string) gokad.Contact {

@@ -1,13 +1,12 @@
 package kadnet
 
 import (
+	"github.com/alabianca/gokad"
 	"github.com/alabianca/snfs/snfs/kadnet/buffers"
 	"github.com/alabianca/snfs/snfs/kadnet/messages"
 	"log"
 	"net"
 	"sync"
-
-	"github.com/alabianca/gokad"
 )
 
 var dhtInstance *DHT
@@ -65,10 +64,6 @@ func (dht *DHT) NodeLookup(rpc RPC, id gokad.ID) []gokad.Contact {
 	log.Printf("No Error %v\n", fnr)
 
 	return fnr.Payload
-}
-
-func (dht *DHT) findNode(rpc RPC, id gokad.ID, contact gokad.Contact) {
-
 }
 
 func (dht *DHT) getAlphaNodes(alpha int, id gokad.ID) []gokad.Contact {
