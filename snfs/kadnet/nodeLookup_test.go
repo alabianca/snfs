@@ -212,6 +212,86 @@ func TestNodeLookup_MergeLosersAndRound(t *testing.T) {
 	}
 }
 
+func TestNodeLookup_AllSuccess(t *testing.T) {
+	myID := gokad.GenerateRandomID()
+	lookupID := gokad.GenerateRandomID()
+	c1 := generateContact("28f787e3b60f99fb29b14266c40b536d6037307e")
+	c2 := generateContact("8f2d6ae2378dda228d3bd39c41a4b6f6f538a41e")
+	c3 := generateContact("dc03f8f281c7118225901c8655f788cd84e3f449")
+	c4 := generateContact("ac03f8f281c7118225901c8655f788cd84e3f449")
+	c5 := generateContact("bc03f8f281c7118225901c8655f788cd84e3f449")
+	c6 := generateContact("bc03f8f281c7118225901c8655f788cd84e3f449")
+	in := map[string]gokad.Contact{
+		c1.ID.String():c1,
+		c2.ID.String():c2,
+		c3.ID.String():c3,
+		c4.ID.String():c4,
+		c5.ID.String():c5,
+		c6.ID.String():c6,
+	}
+	alphaNodes := []gokad.Contact{c1,c2,c3}
+	buf := buffers.NewNodeReplyBuffer()
+	buf.Open()
+	defer buf.Close()
+
+	data := map[string]messages.FindNodeResponse{
+		c1.ID.String(): generateFindNodeResponse(
+			c1.ID.String(),
+			gokad.GenerateRandomID().String(),
+			[]gokad.Contact{c4},
+		),
+		c2.ID.String(): generateFindNodeResponse(
+			c2.ID.String(),
+			gokad.GenerateRandomID().String(),
+			[]gokad.Contact{c5},
+		),
+		c4.ID.String(): generateFindNodeResponse(
+			c4.ID.String(),
+			gokad.GenerateRandomID().String(),
+			[]gokad.Contact{},
+		),
+		c5.ID.String(): generateFindNodeResponse(
+			c5.ID.String(),
+			gokad.GenerateRandomID().String(),
+			[]gokad.Contact{c6},
+		),
+	}
+
+	client := newTestClient(buf, data)
+
+	out := nodeLookup(myID, client, lookupID.String(), alphaNodes)
+	outm := make(map[string]gokad.Contact)
+	for _, c := range out {
+		outm[c.ID.String()] = c
+	}
+
+	if !reflect.DeepEqual(outm, in) {
+		t.Fatalf("Expected returned nodes to be %v, but got %v\n", in, outm)
+	}
+}
+
+func TestNodeLookup_NoResponse(t *testing.T) {
+	myID := gokad.GenerateRandomID()
+	lookupID := gokad.GenerateRandomID()
+	c1 := generateContact("28f787e3b60f99fb29b14266c40b536d6037307e")
+	c2 := generateContact("8f2d6ae2378dda228d3bd39c41a4b6f6f538a41e")
+	c3 := generateContact("dc03f8f281c7118225901c8655f788cd84e3f449")
+
+	alphaNodes := []gokad.Contact{c1,c2,c3}
+	buf := buffers.NewNodeReplyBuffer()
+	buf.Open()
+	defer buf.Close()
+	// don't add any data to the buffer to simulate no responses
+	data := map[string]messages.FindNodeResponse{}
+
+	client := newTestClient(buf, data)
+
+	out := nodeLookup(myID, client, lookupID.String(), alphaNodes)
+	if len(out) != 3 {
+		t.Fatalf("Expected %d results, but got %d results\n", 3, len(out))
+	}
+}
+
 func generateContact(id string) gokad.Contact {
 	x, _ := gokad.From(id)
 	return gokad.Contact{

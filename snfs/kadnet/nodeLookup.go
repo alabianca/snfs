@@ -55,13 +55,14 @@ func nodeLookup(ownID gokad.ID, client RPC, id string, alphaCs []gokad.Contact) 
 
 	for {
 		next := nextSet(tm, 3)
-		for _, c := range next {
-			c.queried = true
-		}
 
 		if len(next) == 0 {
 			close(timedOutNodes)
 			break
+		}
+
+		for _, c := range next {
+			c.queried = true
 		}
 
 		rc := round(client, id, next, timedOutNodes)
@@ -165,7 +166,7 @@ func round(client RPC, id string, nodes []*enquiredNode, losers chan findNodeRes
 	for _, n := range nodes {
 		go func(node *enquiredNode) {
 			defer wg.Done()
-			res := <-sendFindNode(client, id, node, time.Second*3)
+			res := <-sendFindNode(client, id, node, time.Millisecond*500) // @todo get this timeout from somehwere
 			if res.err != nil && res.err.Error() == buffers.TimeoutErr {
 				losers <- res
 				return
