@@ -16,7 +16,6 @@ func restAPIRoutes(c *ConnectivityService) *chi.Mux {
 		render.SetContentType(render.ContentTypeJSON),
 		//setupCORS().Handler,        // Allow Cross-Origin-Requests
 		middleware.Logger,          // Log API Requests
-		middleware.DefaultCompress, // Compress results
 		middleware.RedirectSlashes, // Redirect slashes to no slash url versions
 		middleware.Recoverer,       // recover from panic without crashing
 	)
@@ -24,7 +23,7 @@ func restAPIRoutes(c *ConnectivityService) *chi.Mux {
 	router.Route("/api/v1", func(r chi.Router) {
 		r.Mount("/mdns", mdnsRoutes(c.discovery))
 		r.Mount("/storage", storageRoutes(c.storage))
-		r.Mount("/discovery", bootstrapRoutes(c.rpc))
+		r.Mount("/kadnet", kadnetRoutes(c.rpc))
 	})
 
 	return router
@@ -50,10 +49,11 @@ func storageRoutes(storage *fs.Manager) *chi.Mux {
 	return router
 }
 
-func bootstrapRoutes(rpc *kadnet.RpcManager) *chi.Mux {
+func kadnetRoutes(rpc *kadnet.RpcManager) *chi.Mux {
 	router := chi.NewRouter()
 
 	router.Post("/bootstrap", bootstrapController(rpc))
+	router.Get("/status", kadnetStatusController(rpc))
 
 	return router
 }

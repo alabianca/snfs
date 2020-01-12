@@ -70,3 +70,16 @@ func (dht *DHT) Insert(c gokad.Contact) (gokad.Contact, int, error) {
 	defer dht.mtx.Unlock()
 	return dht.Table.RoutingTable.Add(c)
 }
+
+func (dht *DHT) Walk(f func(bucketIndex int, c gokad.Contact)) {
+	routing := dht.Table.RoutingTable
+	for i := 0; i < gokad.MaxRoutingTableSize; i++ {
+		bucket, ok := routing.Bucket(i)
+		if ok {
+			bucket.Walk(func(c gokad.Contact) bool {
+				f(i, c)
+				return true
+			})
+		}
+	}
+}

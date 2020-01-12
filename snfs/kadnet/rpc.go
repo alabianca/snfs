@@ -3,10 +3,15 @@ package kadnet
 import (
 	"github.com/alabianca/gokad"
 	"github.com/alabianca/snfs/snfs/kadnet/response"
-	"log"
 )
 
 const ServiceName = "RPCManager"
+
+type RoutingTableEntry struct {
+	BucketIndex int `json:"bucketIndex"`
+	Contact gokad.Contact `json:"contact"`
+}
+
 
 type Manager interface {
 	Name() string
@@ -78,12 +83,22 @@ func (rpc *RpcManager) Seed(contacts ...gokad.Contact) {
 	}
 }
 
+func (rpc *RpcManager) Status() []RoutingTableEntry {
+	rt := make([]RoutingTableEntry, 0)
+
+	rpc.dht.Walk(func(index int, c gokad.Contact) {
+		rt = append(rt, RoutingTableEntry{index, c})
+	})
+
+	return rt
+}
+
+// @todo step 3 of the bootstrap procedure.
 func (rpc *RpcManager) bootstrap(id gokad.ID) {
 	client := rpc.server.NewClient()
 	cs := rpc.dht.NodeLookup(client, id)
-	log.Printf("Contacts %d\n", len(cs))
 	for _, c := range cs {
-		log.Printf("Contact %s\n", c.ID)
+		rpc.dht.Insert(c)
 	}
 }
 

@@ -266,6 +266,18 @@ func bootstrapController(rpc *kadnet.RpcManager) http.HandlerFunc {
 	}
 }
 
+func kadnetStatusController(rpc *kadnet.RpcManager) http.HandlerFunc {
+	return func(res http.ResponseWriter, req *http.Request) {
+		sr := rpc.Status()
+
+		response := util.Message(http.StatusOK, "Ok")
+		response["data"] = sr
+		util.Respond(res, response)
+
+
+	}
+}
+
 func queueServiceRequest(serviceName string, op server.OP, res chan server.ResponseCode) error {
 	service, err := server.ResolveService(serviceName)
 	if err != nil {

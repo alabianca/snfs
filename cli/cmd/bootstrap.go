@@ -18,7 +18,7 @@ var bootstrapCmd = &cobra.Command{
 	Args:  cobra.MinimumNArgs(3),
 	Long:  `Bootstrap your node and join the network by contacting a bootstrap node (id) at port,ip `,
 	Run: func(cmd *cobra.Command, args []string) {
-		bs := services.NewBootstrapService()
+		bs := services.NewKadnetService()
 
 		port, err := strconv.ParseInt(args[0], 10, 16)
 		if err != nil {
