@@ -124,8 +124,10 @@ func nodeLookup(client RPC, id gokad.ID, alphaCs []gokad.Contact) []gokad.Contac
 	out := make([]gokad.Contact, K) // @todo get this value from somewhere else instead of hardcoding it
 	var index int
 	tm.Traverse(func(k gokad.Distance, v treemap.PendingNode) bool {
-		out[index] = v.Contact()
-		index++
+		if v.Answered() {
+			out[index] = v.Contact()
+			index++
+		}
 		if index >= K {
 			return false
 		}
