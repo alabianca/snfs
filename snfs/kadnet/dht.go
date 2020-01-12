@@ -3,8 +3,6 @@ package kadnet
 import (
 	"github.com/alabianca/gokad"
 	"github.com/alabianca/snfs/snfs/kadnet/buffers"
-	"github.com/alabianca/snfs/snfs/kadnet/messages"
-	"log"
 	"net"
 	"sync"
 )
@@ -50,20 +48,8 @@ func (dht *DHT) NodeLookup(rpc RPC, id gokad.ID) []gokad.Contact {
 	buf.Open()
 	defer buf.Close()
 	alphaNodes := dht.getAlphaNodes(3, id)
-	res, err := rpc.FindNode(alphaNodes[0], id.String())
-	if err != nil {
-		log.Printf("Error Node Lookup %s\n", err)
-		return []gokad.Contact{}
-	}
-	fnr := messages.FindNodeResponse{}
-	if _, err := res.Read(&fnr); err != nil {
-		log.Printf("Error reading %s\n", err)
-		return []gokad.Contact{}
-	}
 
-	log.Printf("No Error %v\n", fnr)
-
-	return fnr.Payload
+	return nodeLookup(rpc, id, alphaNodes)
 }
 
 func (dht *DHT) getAlphaNodes(alpha int, id gokad.ID) []gokad.Contact {

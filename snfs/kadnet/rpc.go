@@ -3,6 +3,7 @@ package kadnet
 import (
 	"github.com/alabianca/gokad"
 	"github.com/alabianca/snfs/snfs/kadnet/response"
+	"log"
 )
 
 const ServiceName = "RPCManager"
@@ -79,7 +80,11 @@ func (rpc *RpcManager) Seed(contacts ...gokad.Contact) {
 
 func (rpc *RpcManager) bootstrap(id gokad.ID) {
 	client := rpc.server.NewClient()
-	rpc.dht.NodeLookup(client, id)
+	cs := rpc.dht.NodeLookup(client, id)
+	log.Printf("Contacts %d\n", len(cs))
+	for _, c := range cs {
+		log.Printf("Contact %s\n", c.ID)
+	}
 }
 
 // Manager starts here

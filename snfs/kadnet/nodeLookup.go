@@ -41,6 +41,39 @@ func (e *enquiredNode) Answered() bool {
 	return e.answered
 }
 
+// The node lookup is central to Kademlia.
+// It works as follows:
+// 1. We insert the alpha contacts in a list. This list is sorted according to
+//    distance of the id we look up and the contact's id.
+// 2. We then split up the node lookup into rounds. At the start of each round
+//    we pull out CONCURRENCY (3) contacts ouf of the list that have not yet been queried
+// 3. We then send FIND_NODE_RPC's to each of these contacts. Giving them a specified amount of time to respond
+//    If they respond on time we insert each contact in the response into the list mentioned above.
+//    If they don't respond on time we put the contact in a losers list and wait for a response without a timeout. If they end up responding. Great. We add it to the list
+// 4. After each round is done, we again take CONCURRENCY (3) contacts and start the process again.
+// 5. If a round did not reveal a new contact however, we set CONCURRENCY to K and send each of them a FIND_NODE_RPC in hopes to discover more nodes.
+/*
+
+   -----------------------|
+   |	                  |
+   |      (2) ------ (3)  |
+   |	 /             \  |
+   |	/				(5)<--- |
+   |   /               /        |
+   |> (1) ---(2)------ (3)      |
+      \                         |
+	   \	                    |
+        \                       |
+		  (2) ------ (3) ----- (4)
+
+
+   (1): nodeLookup
+   (2): sendFindNode
+   (3): Wait for response with timeout
+   (4): timed out nodes. Wait for response indefinetely
+   (5): Gather responses from current round of timed out nodes
+
+*/
 func nodeLookup(client RPC, id gokad.ID, alphaCs []gokad.Contact) []gokad.Contact {
 	tm := treemap.NewMap(compareDistance)
 	for _, c := range alphaCs {
@@ -52,9 +85,9 @@ func nodeLookup(client RPC, id gokad.ID, alphaCs []gokad.Contact) []gokad.Contac
 
 	timedOutNodes := make(chan findNodeResult)
 	lateReplies := losers(timedOutNodes)
-
+	concurrency := 3
 	for {
-		next := nextSet(tm, 3)
+		next := nextSet(tm, concurrency)
 
 		if len(next) == 0 {
 			close(timedOutNodes)
@@ -66,13 +99,25 @@ func nodeLookup(client RPC, id gokad.ID, alphaCs []gokad.Contact) []gokad.Contac
 		}
 
 		rc := round(client, id.String(), next, timedOutNodes)
+		var atLeastOneNewNode bool
 		for cs := range mergeLosersAndRound(lateReplies, rc) {
 			if cs.err == nil {
 				cs.node.answered = true
 				for _, c := range cs.payload {
-					tm.Insert(id.DistanceTo(c.ID), &enquiredNode{contact: c})
+					distance := id.DistanceTo(c.ID)
+					if _, ok := tm.Get(distance); !ok {
+						atLeastOneNewNode = true
+						tm.Insert(distance, &enquiredNode{contact: c})
+					}
+
 				}
 			}
+		}
+
+		// if a round did not reveal at least one new node we take all K closest
+		// nodes not already queried and send them FIND_NODE_RPC's
+		if !atLeastOneNewNode {
+			concurrency = K
 		}
 	}
 
@@ -94,7 +139,7 @@ func nextSet(tm *treemap.TreeMap, size int) []*enquiredNode {
 	out := make([]*enquiredNode, 0)
 
 	tm.Traverse(func(k gokad.Distance, node treemap.PendingNode) bool {
-		if !node.Queried() && len(out) < size {
+		if !node.Queried() && (len(out) < size || size < 0) {
 			p, _ := node.(*enquiredNode)
 			out = append(out, p)
 		}
