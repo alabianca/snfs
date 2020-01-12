@@ -78,7 +78,7 @@ func (dht *DHT) Walk(f func(bucketIndex int, c gokad.Contact)) {
 		if ok {
 			bucket.Walk(func(c gokad.Contact) bool {
 				f(i, c)
-				return true
+				return false
 			})
 		}
 	}

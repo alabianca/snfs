@@ -22,7 +22,7 @@ var compareDistance = func(d1 gokad.Distance, d2 gokad.Distance) int {
 		}
 	}
 
-	return 1
+	return 0
 }
 
 type enquiredNode struct {
@@ -199,7 +199,6 @@ func losers(timedOutNodes <-chan findNodeResult) chan findNodeResult {
 		for res := range timedOutNodes {
 			go readWithoutTimeout(res, out)
 		}
-		close(out)
 	}()
 
 	return out
@@ -213,7 +212,7 @@ func round(client RPC, id string, nodes []*enquiredNode, losers chan findNodeRes
 	for _, n := range nodes {
 		go func(node *enquiredNode) {
 			defer wg.Done()
-			res := <-sendFindNode(client, id, node, time.Millisecond*500) // @todo get this timeout from somehwere
+			res := <-sendFindNode(client, id, node, time.Second * 3) // @todo get this timeout from somehwere
 			if res.err != nil && res.err.Error() == buffers.TimeoutErr {
 				losers <- res
 				return
@@ -248,7 +247,7 @@ func sendFindNode(client RPC, id string, node *enquiredNode, timeout time.Durati
 			return
 		}
 
-		out <- findNodeResult{node, fnr.Payload, res, err}
+		out <- findNodeResult{node, fnr.Payload, res, nil}
 
 	}()
 
@@ -257,9 +256,11 @@ func sendFindNode(client RPC, id string, node *enquiredNode, timeout time.Durati
 
 func readWithoutTimeout(timedOutNode findNodeResult, out chan findNodeResult) {
 	var fnr messages.FindNodeResponse
-	if _, err := timedOutNode.response.Read(&fnr); err == nil {
-		timedOutNode.err = nil
-		timedOutNode.payload = fnr.Payload
-		out <- timedOutNode
-	}
+	go func() {
+		if _, err := timedOutNode.response.Read(&fnr); err == nil {
+			timedOutNode.err = nil
+			timedOutNode.payload = fnr.Payload
+			out <- timedOutNode
+		}
+	}()
 }
