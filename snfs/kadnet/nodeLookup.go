@@ -41,13 +41,13 @@ func (e *enquiredNode) Answered() bool {
 	return e.answered
 }
 
-func nodeLookup(ownID gokad.ID, client RPC, id string, alphaCs []gokad.Contact) []gokad.Contact {
+func nodeLookup(client RPC, id gokad.ID, alphaCs []gokad.Contact) []gokad.Contact {
 	tm := treemap.NewMap(compareDistance)
 	for _, c := range alphaCs {
 		node := enquiredNode{
 			contact:  c,
 		}
-		tm.Insert(ownID.DistanceTo(c.ID), &node)
+		tm.Insert(id.DistanceTo(c.ID), &node)
 	}
 
 	timedOutNodes := make(chan findNodeResult)
@@ -65,12 +65,12 @@ func nodeLookup(ownID gokad.ID, client RPC, id string, alphaCs []gokad.Contact) 
 			c.queried = true
 		}
 
-		rc := round(client, id, next, timedOutNodes)
+		rc := round(client, id.String(), next, timedOutNodes)
 		for cs := range mergeLosersAndRound(lateReplies, rc) {
 			if cs.err == nil {
 				cs.node.answered = true
 				for _, c := range cs.payload {
-					tm.Insert(ownID.DistanceTo(c.ID), &enquiredNode{contact: c})
+					tm.Insert(id.DistanceTo(c.ID), &enquiredNode{contact: c})
 				}
 			}
 		}

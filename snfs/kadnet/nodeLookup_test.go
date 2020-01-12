@@ -213,7 +213,6 @@ func TestNodeLookup_MergeLosersAndRound(t *testing.T) {
 }
 
 func TestNodeLookup_AllSuccess(t *testing.T) {
-	myID := gokad.GenerateRandomID()
 	lookupID := gokad.GenerateRandomID()
 	c1 := generateContact("28f787e3b60f99fb29b14266c40b536d6037307e")
 	c2 := generateContact("8f2d6ae2378dda228d3bd39c41a4b6f6f538a41e")
@@ -259,7 +258,7 @@ func TestNodeLookup_AllSuccess(t *testing.T) {
 
 	client := newTestClient(buf, data)
 
-	out := nodeLookup(myID, client, lookupID.String(), alphaNodes)
+	out := nodeLookup(client, lookupID, alphaNodes)
 	outm := make(map[string]gokad.Contact)
 	for _, c := range out {
 		outm[c.ID.String()] = c
@@ -271,7 +270,6 @@ func TestNodeLookup_AllSuccess(t *testing.T) {
 }
 
 func TestNodeLookup_NoResponse(t *testing.T) {
-	myID := gokad.GenerateRandomID()
 	lookupID := gokad.GenerateRandomID()
 	c1 := generateContact("28f787e3b60f99fb29b14266c40b536d6037307e")
 	c2 := generateContact("8f2d6ae2378dda228d3bd39c41a4b6f6f538a41e")
@@ -286,7 +284,7 @@ func TestNodeLookup_NoResponse(t *testing.T) {
 
 	client := newTestClient(buf, data)
 
-	out := nodeLookup(myID, client, lookupID.String(), alphaNodes)
+	out := nodeLookup(client, lookupID, alphaNodes)
 	if len(out) != 3 {
 		t.Fatalf("Expected %d results, but got %d results\n", 3, len(out))
 	}
