@@ -13,7 +13,7 @@ import (
 	"github.com/alabianca/snfs/snfs/fs"
 
 	"github.com/alabianca/snfs/snfs/discovery"
-	"github.com/alabianca/snfs/snfs/kadnet"
+	"github.com/alabianca/snfs/snfs/kad"
 )
 
 const ServiceName = "ClientConnectivityService"
@@ -24,12 +24,12 @@ type ConnectivityService struct {
 	discovery  *discovery.Manager
 	httpServer *http.Server
 	storage    *fs.Manager
-	rpc        *kadnet.RpcManager
+	rpc        *kad.RpcManager
 	id         []byte
 	name       string
 }
 
-func NewConnectivityService(dManager *discovery.Manager, storage *fs.Manager, rpc *kadnet.RpcManager) *ConnectivityService {
+func NewConnectivityService(dManager *discovery.Manager, storage *fs.Manager, rpc *kad.RpcManager) *ConnectivityService {
 
 	c := &ConnectivityService{
 		discovery: dManager,

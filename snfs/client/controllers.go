@@ -18,7 +18,7 @@ import (
 	"github.com/alabianca/snfs/util"
 
 	"github.com/alabianca/snfs/snfs/fs"
-	"github.com/alabianca/snfs/snfs/kadnet"
+	"github.com/alabianca/snfs/snfs/kad"
 
 	"github.com/go-chi/chi"
 
@@ -54,7 +54,7 @@ func startMDNSController(d *discovery.Manager) http.HandlerFunc {
 			util.Respond(res, util.Message(http.StatusNotFound, "Could Not Resolve Service "+discovery.ServiceName))
 			return
 		}
-		if err := queueServiceRequest(kadnet.ServiceName, server.OPStartService, rpc); err != nil {
+		if err := queueServiceRequest(kad.ServiceName, server.OPStartService, rpc); err != nil {
 			util.Respond(res, util.Message(http.StatusNotFound, "Could Not Resolve Service "+discovery.ServiceName))
 			return
 		}
@@ -74,7 +74,7 @@ func stopMDNSController(d *discovery.Manager) http.HandlerFunc {
 			util.Respond(res, util.Message(http.StatusNotFound, "Could Not Resolve Service "+discovery.ServiceName))
 			return
 		}
-		if err := queueServiceRequest(kadnet.ServiceName, server.OPStopService, rpc); err != nil {
+		if err := queueServiceRequest(kad.ServiceName, server.OPStopService, rpc); err != nil {
 			util.Respond(res, util.Message(http.StatusNotFound, "Could Not Resolve Service "+discovery.ServiceName))
 			return
 		}
@@ -246,7 +246,7 @@ func getFileController(storage *fs.Manager) http.HandlerFunc {
 	}
 }
 
-func bootstrapController(rpc *kadnet.RpcManager) http.HandlerFunc {
+func bootstrapController(rpc *kad.RpcManager) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
 		var br BootstrapRequest
 
@@ -266,7 +266,7 @@ func bootstrapController(rpc *kadnet.RpcManager) http.HandlerFunc {
 	}
 }
 
-func kadnetStatusController(rpc *kadnet.RpcManager) http.HandlerFunc {
+func kadnetStatusController(rpc *kad.RpcManager) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
 		sr := rpc.Status()
 

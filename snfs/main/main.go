@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/alabianca/gokad"
 	"log"
 	"os"
 	"os/signal"
@@ -10,7 +11,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/alabianca/snfs/snfs/kadnet"
+	"github.com/alabianca/snfs/snfs/kad"
 
 	"github.com/alabianca/snfs/snfs/client"
 
@@ -87,7 +88,7 @@ func startService(s server.Service) {
 }
 
 func resolveServices(s *server.Server) map[string]server.Service {
-	rpc := kadnet.NewRPCManager(kadnet.GetDHT(), s.Addr, s.Port)
+	rpc := kad.NewRPCManager(gokad.NewDHT(), s.Addr, s.Port)
 	storage := fs.NewManager()
 	dm := discovery.NewManager(discovery.MdnsStrategy(configureMDNS(s.Port, s.Addr, rpc.ID())))
 	cc := client.NewConnectivityService(dm, storage, rpc)
