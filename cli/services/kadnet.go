@@ -7,7 +7,6 @@ import (
 )
 
 type boostrapRequest struct {
-	ID      string `json:"id"`
 	Address string `json:"address"`
 	Port    int    `json:"port"`
 }
@@ -33,9 +32,8 @@ func NewKadnetService() *KadnetService {
 	}
 }
 
-func (k *KadnetService) Boostrap(port int, address, id string) error {
+func (k *KadnetService) Boostrap(port int, address string) error {
 	req := boostrapRequest{
-		ID:      id,
 		Port:    port,
 		Address: address,
 	}

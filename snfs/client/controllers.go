@@ -261,7 +261,7 @@ func bootstrapController(rpc *kad.RpcManager) http.HandlerFunc {
 			return
 		}
 
-		rpc.Bootstrap(br.Port, br.Address, br.ID)
+		rpc.Bootstrap(br.Port, br.Address)
 
 	}
 }

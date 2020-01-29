@@ -25,7 +25,10 @@ type RpcManager struct {
 }
 
 func NewRPCManager(dht *gokad.DHT, address string, port int) *RpcManager {
-	node := kadnet.NewNode(dht, address, port)
+	node := kadnet.NewNode(dht, func(n *kadnet.Node) {
+		n.Host = address
+		n.Port = port
+	})
 
 	return &RpcManager{
 		node: node,
@@ -34,8 +37,8 @@ func NewRPCManager(dht *gokad.DHT, address string, port int) *RpcManager {
 
 // RPCs start here
 
-func (rpc *RpcManager) Bootstrap(port int, ip, idHex string) (error) {
-	return rpc.node.Bootstrap(port, ip, idHex)
+func (rpc *RpcManager) Bootstrap(port int, ip string) error {
+	return rpc.node.Bootstrap(port, ip)
 }
 
 

@@ -34,7 +34,6 @@ type FileUploadResponse struct {
 }
 
 type BootstrapRequest struct {
-	ID      string `json:"id"`
 	Port    int    `json:"port"`
 	Address string `json:"address"`
 }
