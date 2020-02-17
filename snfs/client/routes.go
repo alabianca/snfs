@@ -22,7 +22,7 @@ func restAPIRoutes(c *ConnectivityService) *chi.Mux {
 
 	router.Route("/api/v1", func(r chi.Router) {
 		r.Mount("/mdns", mdnsRoutes(c.discovery))
-		r.Mount("/storage", storageRoutes(c.storage))
+		r.Mount("/storage", storageRoutes(c.storage, c.rpc))
 		r.Mount("/kad", kadnetRoutes(c.rpc))
 	})
 
@@ -40,11 +40,11 @@ func mdnsRoutes(d *discovery.Manager) *chi.Mux {
 	return router
 }
 
-func storageRoutes(storage *fs.Manager) *chi.Mux {
+func storageRoutes(storage *fs.Manager, rpc *kad.RpcManager) *chi.Mux {
 	router := chi.NewRouter()
 
-	router.Post("/fname/{name}", storeFileController(storage))
-	router.Get("/fname/{hash}", getFileController(storage))
+	router.Post("/fname/{name}", storeFileController(storage, rpc))
+	router.Get("/fname/{hash}", getFileController(storage, rpc))
 
 	return router
 }

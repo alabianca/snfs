@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 
 	"github.com/alabianca/snfs/util"
 
@@ -21,6 +22,7 @@ const ServiceName = "StorageManager"
 type Manager struct {
 	root    string
 	objects map[string]*object
+	fileServer *server
 	id      []byte
 }
 
@@ -102,7 +104,7 @@ func (m *Manager) delete(name string) error {
 	return nil
 }
 
-// JOB
+// Service
 
 func (m *Manager) Run() error {
 	home, err := homedir.Dir()
@@ -114,7 +116,16 @@ func (m *Manager) Run() error {
 		return err
 	}
 
-	return nil
+	port, err := strconv.ParseInt(os.Getenv("SNFS_FS_PORT"), 10, 16)
+	if err != nil {
+		return err
+	}
+	m.fileServer = &server{
+		addr: os.Getenv("SNFS_HOST"),
+		port: int(port),
+	}
+
+	return m.fileServer.listen(m)
 }
 
 func (m *Manager) ID() string {

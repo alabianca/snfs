@@ -3,6 +3,7 @@ package kad
 import (
 	"github.com/alabianca/gokad"
 	"github.com/alabianca/kadnet"
+	"net"
 )
 
 const ServiceName = "RPCManager"
@@ -35,7 +36,6 @@ func NewRPCManager(dht *gokad.DHT, address string, port int) *RpcManager {
 	}
 }
 
-// RPCs start here
 
 func (rpc *RpcManager) Bootstrap(port int, ip string) error {
 	return rpc.node.Bootstrap(port, ip)
@@ -50,6 +50,19 @@ func (rpc *RpcManager) Status() []RoutingTableEntry {
 	})
 
 	return rt
+}
+
+func (rpc *RpcManager) Store(key string, ip net.IP, port int) (int, error) {
+	return rpc.node.Store(key, ip, port)
+}
+
+func (rpc *RpcManager) Resolve(hash string) (net.Addr, error) {
+	resolver, err := rpc.node.NewResolver()
+	if err != nil {
+		return nil, err
+	}
+
+	return resolver.Resolve(hash)
 }
 
 // Manager starts here

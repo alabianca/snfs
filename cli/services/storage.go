@@ -3,12 +3,13 @@ package services
 import (
 	"bytes"
 	"compress/gzip"
-	"crypto/md5"
+	"crypto/sha1"
 	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"mime/multipart"
+	"net/http"
 
 	"github.com/alabianca/snfs/util"
 )
@@ -76,15 +77,20 @@ func (s *StorageService) Download(hash string) error {
 
 	defer res.Body.Close()
 
+	if res.StatusCode != http.StatusOK {
+		return errors.New("Request Failed")
+	}
+
 	bodyBytes, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return err
 	}
 
-	hasher := md5.New()
+	hasher := sha1.New()
 	io.Copy(hasher, bytes.NewBuffer(bodyBytes))
 
-	match := fmt.Sprintf("%x", hasher.Sum(nil)) == hash
+	sum := fmt.Sprintf("%x", hasher.Sum(nil))
+	match := sum == hash
 	if !match {
 		return errors.New("Hash does not match")
 	}

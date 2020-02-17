@@ -31,10 +31,16 @@ var dport int
 
 func main() {
 	myIP, err := util.MyIP("ipv4")
+	// SNFS_CLIENT_CONNECTIVITY_PORT: Clis and other client applications connect to it
 	cport = getPort("SNFS_CLIENT_CONNECTIVITY", 4200)
+	// SNFS_DISCOVERY_PORT: This is the port is used to listen to discovery udp packets
 	dport = getPort("SNFS_DISCOVERY", 5050)
 
 	if err != nil {
+		log.Fatal(err)
+	}
+
+	if err := util.SetEnv("SNFS_HOST", myIP.String()); err != nil {
 		log.Fatal(err)
 	}
 

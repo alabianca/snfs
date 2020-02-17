@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"log"
 	"math/rand"
 	"net"
 	"os"
@@ -112,6 +113,7 @@ func ReadTarball(reader io.Reader, target string) error {
 		switch header.Typeflag {
 		case tar.TypeDir:
 			//it is a directory. create it if it does not exist
+			log.Println("Creating directory...")
 			if _, err := os.Stat(target); err != nil {
 				if err := os.MkdirAll(target, 0755); err != nil {
 					return err
@@ -120,7 +122,8 @@ func ReadTarball(reader io.Reader, target string) error {
 
 		case tar.TypeReg:
 			//regular file. create it
-			f, err := os.OpenFile(target, os.O_CREATE|os.O_RDWR, os.FileMode(header.Mode))
+			f, err := os.Create(header.Name)
+			//f, err := os.OpenFile(target, os.O_CREATE|os.O_RDWR, os.FileMode(header.Mode))
 			if err != nil {
 				return err
 			}
@@ -149,4 +152,8 @@ func BytesFromHex(in string) ([]byte, error) {
 
 	return out[:n], nil
 
+}
+
+func SetEnv(key string, val string) error {
+	return os.Setenv(key, val)
 }

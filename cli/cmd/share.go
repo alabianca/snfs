@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"compress/gzip"
-	"crypto/md5"
+	"crypto/sha1"
 	"fmt"
 	"log"
 	"os"
@@ -89,7 +89,7 @@ func upload(errChan chan error, chanSuccess chan string, fname, uploadCntx strin
 }
 
 func hashContents(uploadCntxt string) ([]byte, error) {
-	hash := md5.New()
+	hash := sha1.New()
 	gzw := gzip.NewWriter(hash)
 	if err := util.WriteTarball(gzw, uploadCntxt); err != nil {
 		return nil, err
