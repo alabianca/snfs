@@ -7,7 +7,7 @@ func init() {
 }
 
 var kadnetCmd = &cobra.Command{
-	Use:   "kadnet",
+	Use:   "kad",
 	Short: "Interact with the DHT",
 	Long:  `Commands to interact with the underlying kademlia dht`,
 	Run: func(cmd *cobra.Command, args []string) {

@@ -2,10 +2,12 @@ package client
 
 import (
 	"bytes"
-	"crypto/md5"
+	"crypto/sha1"
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
+	"net"
 	"net/http"
 	"os"
 	"strconv"
@@ -18,7 +20,7 @@ import (
 	"github.com/alabianca/snfs/util"
 
 	"github.com/alabianca/snfs/snfs/fs"
-	"github.com/alabianca/snfs/snfs/kadnet"
+	"github.com/alabianca/snfs/snfs/kad"
 
 	"github.com/go-chi/chi"
 
@@ -54,7 +56,7 @@ func startMDNSController(d *discovery.Manager) http.HandlerFunc {
 			util.Respond(res, util.Message(http.StatusNotFound, "Could Not Resolve Service "+discovery.ServiceName))
 			return
 		}
-		if err := queueServiceRequest(kadnet.ServiceName, server.OPStartService, rpc); err != nil {
+		if err := queueServiceRequest(kad.ServiceName, server.OPStartService, rpc); err != nil {
 			util.Respond(res, util.Message(http.StatusNotFound, "Could Not Resolve Service "+discovery.ServiceName))
 			return
 		}
@@ -74,7 +76,7 @@ func stopMDNSController(d *discovery.Manager) http.HandlerFunc {
 			util.Respond(res, util.Message(http.StatusNotFound, "Could Not Resolve Service "+discovery.ServiceName))
 			return
 		}
-		if err := queueServiceRequest(kadnet.ServiceName, server.OPStopService, rpc); err != nil {
+		if err := queueServiceRequest(kad.ServiceName, server.OPStopService, rpc); err != nil {
 			util.Respond(res, util.Message(http.StatusNotFound, "Could Not Resolve Service "+discovery.ServiceName))
 			return
 		}
@@ -175,7 +177,7 @@ func getInstancesController(d *discovery.Manager) http.HandlerFunc {
 	}
 }
 
-func storeFileController(storage *fs.Manager) http.HandlerFunc {
+func storeFileController(storage *fs.Manager, rpc *kad.RpcManager) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
 		req.ParseMultipartForm(100 << 20) // 100mgb
 
@@ -193,7 +195,7 @@ func storeFileController(storage *fs.Manager) http.HandlerFunc {
 			return
 		}
 
-		hasher := md5.New()
+		hasher := sha1.New()
 		storageWriter := fs.NewWriter(hasher, destFile)
 		defer storageWriter.Close()
 
@@ -210,6 +212,23 @@ func storeFileController(storage *fs.Manager) http.HandlerFunc {
 			return
 		}
 
+		host := os.Getenv("SNFS_HOST")
+		if host == "" {
+			util.Respond(res, util.Message(http.StatusInternalServerError, "SNFS_HOST Environment Variable Not Set"))
+			return
+		}
+		port, err := strconv.ParseInt(os.Getenv("SNFS_FS_PORT"), 10, 16)
+		if err != nil || port == 0 {
+			util.Respond(res, util.Message(http.StatusInternalServerError, "SNFS_FS_PORT Environment Variable Not Set"))
+			return
+		}
+
+
+		if _, err := rpc.Store(hashed, net.ParseIP(host), int(port)); err != nil {
+			util.Respond(res, util.Message(http.StatusInternalServerError, err.Error()))
+			return
+		}
+
 		response := util.Message(http.StatusCreated, "OK")
 		response["data"] = hashed
 
@@ -218,35 +237,36 @@ func storeFileController(storage *fs.Manager) http.HandlerFunc {
 	}
 }
 
-func getFileController(storage *fs.Manager) http.HandlerFunc {
+func getFileController(storage *fs.Manager, rpc *kad.RpcManager) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
 		fileHash := chi.URLParam(req, "hash")
-		if fileHash == "" {
-			util.Respond(res, util.Message(http.StatusBadRequest, "File has not provided"))
-			return
-		}
 
-		filePath, err := storage.GetObjectPath(fileHash)
+		addr, err := rpc.Resolve(fileHash)
+		log.Printf("Resolved Address %s\n", addr)
+		log.Printf("Resolved error %s\n", err)
+
+		url := "http://" + addr.String() + "/v1/object/" + fileHash
+		request, err := http.NewRequest("GET", url, nil)
 		if err != nil {
-			util.Respond(res, util.Message(http.StatusNotFound, "File Not Found"))
+			util.Respond(res, util.Message(http.StatusInternalServerError, "Could Not Create a Request"))
 			return
 		}
 
-		file, err := os.Open(filePath)
+		client := http.Client{}
+		response, err := client.Do(request)
 		if err != nil {
-			util.Respond(res, util.Message(http.StatusInternalServerError, err.Error()))
+			util.Respond(res, util.Message(http.StatusInternalServerError, "Could Not Do Request"))
 			return
 		}
 
-		defer file.Close()
-
-		res.WriteHeader(http.StatusOK)
+		defer response.Body.Close()
 		res.Header().Add("Content-Type", "application/octet-stream")
-		io.Copy(res, file)
+		res.WriteHeader(http.StatusOK)
+		io.Copy(res, response.Body)
 	}
 }
 
-func bootstrapController(rpc *kadnet.RpcManager) http.HandlerFunc {
+func bootstrapController(rpc *kad.RpcManager) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
 		var br BootstrapRequest
 
@@ -261,12 +281,12 @@ func bootstrapController(rpc *kadnet.RpcManager) http.HandlerFunc {
 			return
 		}
 
-		rpc.Bootstrap(br.Port, br.Address, br.ID)
+		rpc.Bootstrap(br.Port, br.Address)
 
 	}
 }
 
-func kadnetStatusController(rpc *kadnet.RpcManager) http.HandlerFunc {
+func kadnetStatusController(rpc *kad.RpcManager) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
 		sr := rpc.Status()
 

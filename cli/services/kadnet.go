@@ -7,7 +7,6 @@ import (
 )
 
 type boostrapRequest struct {
-	ID      string `json:"id"`
 	Address string `json:"address"`
 	Port    int    `json:"port"`
 }
@@ -33,9 +32,8 @@ func NewKadnetService() *KadnetService {
 	}
 }
 
-func (k *KadnetService) Boostrap(port int, address, id string) error {
+func (k *KadnetService) Boostrap(port int, address string) error {
 	req := boostrapRequest{
-		ID:      id,
 		Port:    port,
 		Address: address,
 	}
@@ -45,13 +43,13 @@ func (k *KadnetService) Boostrap(port int, address, id string) error {
 		return err
 	}
 
-	k.api.Post("v1/kadnet/bootstrap", "application/json", bytes.NewBuffer(bts))
+	k.api.Post("v1/kad/bootstrap", "application/json", bytes.NewBuffer(bts))
 
 	return nil
 }
 
 func (k *KadnetService) GetStatus() ([]RoutingTableEntry, error) {
-	res, err := k.api.Get("v1/kadnet/status", nil)
+	res, err := k.api.Get("v1/kad/status", nil)
 	if err != nil {
 		return nil, err
 	}
