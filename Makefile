@@ -1,3 +1,8 @@
+
+install: deps
+	go install cli/snfs.go
+	go install snfs/main/snfsd.go
+
 server: deps
 	go build -o bin/snfsd ./snfs/main/
 
