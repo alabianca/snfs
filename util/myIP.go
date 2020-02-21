@@ -49,13 +49,14 @@ func MyIP(network string) (net.IP, error) {
 
 }
 
-func WriteTarball(writer io.Writer, dir string) error {
+func WriteTarball(writer io.Writer, dir string) (int64, error) {
 	tw := tar.NewWriter(writer)
 
 	defer tw.Close()
 
 	// walk path
-	return filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+	var bytesWritten int64
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -80,12 +81,16 @@ func WriteTarball(writer io.Writer, dir string) error {
 			return err
 		}
 
-		if _, err := io.Copy(tw, f); err != nil {
+		var n int64
+		if n, err = io.Copy(tw, f); err != nil {
 			return err
 		}
+		bytesWritten+=n
 
 		return nil
 	})
+
+	return bytesWritten, err
 }
 
 // ReadTarball reads from reader and creates the resulting directory at target

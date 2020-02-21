@@ -37,3 +37,8 @@ type BootstrapRequest struct {
 	Port    int    `json:"port"`
 	Address string `json:"address"`
 }
+
+type StorageResponse struct {
+	Hash string `json:"hash"`
+	ByteWritten int64 `json:"bytesWritten"`
+}

@@ -58,11 +58,11 @@ most personal computers sit behind a NAT. I plan to get around that by using som
 hole punching method.
 
 ## Todos
+- [ ] Serialize/Deserialize RoutingTable on exit/startup
 - [ ] Go beyond a local network using some sort of NAT hole punching for UDP and TCP
 - [ ] When `snfs down` announce it to the network
 - [ ] Properly handle full KBuckets according to the Kademlia Spec
 - [ ] Desktop UI
 - [ ] Periodic republishing according to the Kademlia Spec
 - [ ] Bring in Travis CI
-- [ ] Document Client REST API
 

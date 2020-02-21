@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/alabianca/spin"
 
@@ -16,6 +17,12 @@ import (
 )
 
 var tag string
+
+const (
+	GB = 1000000000 // 1 Gigabytes
+	MB = 1000000    // 1 Megabyte
+	KB = 1000       // 1 Byte
+)
 
 func init() {
 	rootCmd.AddCommand(shareCmd)
@@ -48,19 +55,22 @@ func runShare(uploadCntx, fname string) error {
 
 	spinner := spin.NewSpinner(spin.Dots2, os.Stdout)
 	errChan := make(chan error)
-	resultHash := make(chan string)
+	res := make(chan services.StoreResult)
 
 	go initSpinnerWithText(spinner, fmt.Sprintf("Sharing -> %s", uploadCntx))
-	go upload(errChan, resultHash, fname, uploadCntx)
+	go upload(errChan, res, fname, uploadCntx)
 
 	select {
 	case err := <-errChan:
 		spinner.Stop()
+		time.Sleep(time.Millisecond * 200)
 		fmt.Printf("[Error]: %s\n", err)
 		return err
 
-	case hash := <-resultHash:
+	case hash := <-res:
 		spinner.Stop()
+		time.Sleep(time.Millisecond * 200)
+		fmt.Println()
 		printUploadResult(hash)
 	}
 
@@ -68,7 +78,7 @@ func runShare(uploadCntx, fname string) error {
 
 }
 
-func upload(errChan chan error, chanSuccess chan string, fname, uploadCntx string) {
+func upload(errChan chan error, chanSuccess chan services.StoreResult, fname, uploadCntx string) {
 	storage := services.NewStroageService()
 
 	if fname == "" {
@@ -91,7 +101,7 @@ func upload(errChan chan error, chanSuccess chan string, fname, uploadCntx strin
 func hashContents(uploadCntxt string) ([]byte, error) {
 	hash := sha1.New()
 	gzw := gzip.NewWriter(hash)
-	if err := util.WriteTarball(gzw, uploadCntxt); err != nil {
+	if _, err := util.WriteTarball(gzw, uploadCntxt); err != nil {
 		return nil, err
 	}
 
@@ -101,6 +111,35 @@ func hashContents(uploadCntxt string) ([]byte, error) {
 
 }
 
-func printUploadResult(hash string) {
-	fmt.Printf("Uploaded -> %s\n", hash)
+func printUploadResult(res services.StoreResult) {
+	fmt.Println()
+	fmt.Println(White("Success"))
+	fmt.Println()
+	fmt.Printf("%s           %s\n", White("Hash:"), Green(res.Hash))
+	fmt.Printf("%s  %s (Uncompressed)\n", White("Bytes Written:"), Green(formatBytes(res.BytesWritten)))
+	fmt.Printf("%s           %s\n", White("Took:"), Green(res.Took))
+	fmt.Println()
+	fmt.Printf("To get the content %s %s\n", White("snfs clone"), White(res.Hash))
+	fmt.Println()
+}
+
+func formatBytes(numBytes int64) string {
+	var res float32
+
+	if numBytes >= GB {
+		res = float32(numBytes) / float32(GB)
+		return fmt.Sprintf("%.2f GB", res)
+	}
+
+	if numBytes >= MB {
+		res = float32(numBytes) / float32(MB)
+		return fmt.Sprintf("%.2f MB", res)
+	}
+
+	if numBytes >= KB {
+		res = float32(numBytes) / float32(KB)
+		return fmt.Sprintf("%.2f KB", res)
+	}
+
+	return fmt.Sprintf("%d Bytes", numBytes)
 }

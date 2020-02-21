@@ -199,10 +199,12 @@ func storeFileController(storage *fs.Manager, rpc *kad.RpcManager) http.HandlerF
 		storageWriter := fs.NewWriter(hasher, destFile)
 		defer storageWriter.Close()
 
-		if _, err := io.Copy(storageWriter, file); err != nil {
+		var bytesWritten int64
+		if bytesWritten, err = io.Copy(storageWriter, file); err != nil {
 			util.Respond(res, util.Message(http.StatusInternalServerError, "Error Writing To Storage"))
 			return
 		}
+
 
 		storageWriter.Close()
 
@@ -230,7 +232,10 @@ func storeFileController(storage *fs.Manager, rpc *kad.RpcManager) http.HandlerF
 		}
 
 		response := util.Message(http.StatusCreated, "OK")
-		response["data"] = hashed
+		response["data"] = StorageResponse{
+			Hash:        hashed,
+			ByteWritten: bytesWritten,
+		}
 
 		util.Respond(res, response)
 

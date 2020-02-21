@@ -10,14 +10,21 @@ import (
 	"io/ioutil"
 	"mime/multipart"
 	"net/http"
+	"time"
 
 	"github.com/alabianca/snfs/util"
 )
 
 type storageResponse struct {
-	Status  int    `json:"status"`
-	Message string `json:"message"`
-	Hash    string `json:"data"`
+	Status  int                    `json:"status"`
+	Message string                 `json:"message"`
+	Content StoreResult `json:"data"`
+}
+
+type StoreResult struct {
+	Hash         string `json:"hash"`
+	BytesWritten int64  `json:"bytesWritten"`
+	Took         time.Duration
 }
 
 type StorageService struct {
@@ -30,18 +37,19 @@ func NewStroageService() *StorageService {
 	}
 }
 
-func (s *StorageService) Upload(fname, uploadCntx string) (string, error) {
+func (s *StorageService) Upload(fname, uploadCntx string) (StoreResult, error) {
 	// 1. create destination writer
+	startTime := time.Now()
 	bodyBuf := new(bytes.Buffer)
 	bodyWriter := multipart.NewWriter(bodyBuf)
 	fileWriter, err := bodyWriter.CreateFormFile("upload", fname)
 	if err != nil {
-		return "", err
+		return StoreResult{}, err
 	}
 	// 2. create tarball
 	gzw := gzip.NewWriter(fileWriter)
-	if err := util.WriteTarball(gzw, uploadCntx); err != nil {
-		return "", err
+	if _, err := util.WriteTarball(gzw, uploadCntx); err != nil {
+		return StoreResult{}, err
 	}
 
 	gzw.Close()
@@ -54,17 +62,21 @@ func (s *StorageService) Upload(fname, uploadCntx string) (string, error) {
 	// 4. Read response
 	res, err := s.api.Post(url, contentType, bodyBuf)
 	if err != nil {
-		return "", err
+		return StoreResult{}, err
 	}
 
 	defer res.Body.Close()
 
 	var storeRes storageResponse
 	if err := decode(res.Body, &storeRes); err != nil {
-		return "", err
+		return StoreResult{}, err
 	}
 
-	return storeRes.Hash, nil
+	endTime := time.Now()
+	storeRes.Content.Took = endTime.Sub(startTime)
+
+
+	return storeRes.Content, nil
 
 }
 
