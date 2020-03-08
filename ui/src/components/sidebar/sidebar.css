@@ -1,0 +1,8 @@
+.sidebar {
+    border-right: thin solid var(--light-theme-border);
+}
+
+#node-title {
+    font-weight: 600;
+    color: var(--light-theme-font-color);
+}

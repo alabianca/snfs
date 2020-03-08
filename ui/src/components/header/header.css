@@ -1,0 +1,84 @@
+.header-action {
+    width: 50%;
+}
+
+.header-action.window-actions {
+    height: 40px;
+    border-bottom: thin solid var(--light-theme-border);
+    border-right: thin solid var(--light-theme-border);
+}
+
+.traffic-lights {
+    padding: 0 5px;
+}
+.traffic-light {
+    border-radius: 100%;
+    padding: 0;
+    height: 12px;
+    width: 12px;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    box-sizing: border-box;
+    margin-right: 3.5px;
+    background-color: #ddd;
+    position: relative;
+    outline: none;
+}
+
+.traffic-light::before, .traffic-light::after {
+    visibility: hidden;
+}
+
+.traffic-light:hover::before, .traffic-light:hover::after {
+    visibility: visible;
+}
+
+.traffic-light::before, .traffic-light::after {
+    content: '';
+    position: absolute;
+    border-radius: 1px;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    margin: auto;
+}
+
+.traffic-light:hover.close {
+    background-color: #ff6159;
+}
+.traffic-light.close::before, .traffic-light.close::after {
+    background-color: #4d0000;
+    width: 8px;
+    height: 1px;
+}
+.traffic-light.close::before {
+    transform: rotate(45deg);
+}
+.traffic-light.close::after {
+    transform: rotate(-45deg);
+}
+
+
+.traffic-light:hover.minimize {
+    background-color: #ffbd2e;
+}
+.traffic-light.minimize::before, .traffic-light.minimize::after {
+    background-color: #995700;
+    width: 8px;
+    height: 1px;
+}
+
+.traffic-light:hover.expand {
+    background-color: #28c941;
+}
+.traffic-light.expand::before {
+    background-color: #006500;
+    width: 6px;
+    height: 6px;
+}
+.traffic-light.expand::after {
+    background-color: #28c941;
+    width: 10px;
+    height: 2px;
+    transform: rotate(45deg);    
+}
