@@ -9,7 +9,6 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 
@@ -214,12 +213,12 @@ func storeFileController(storage *fs.Manager, rpc *kad.RpcManager) http.HandlerF
 			return
 		}
 
-		host := os.Getenv("SNFS_HOST")
+		host := server.GetGlobals().Get("SNFS_HOST")
 		if host == "" {
 			util.Respond(res, util.Message(http.StatusInternalServerError, "SNFS_HOST Environment Variable Not Set"))
 			return
 		}
-		port, err := strconv.ParseInt(os.Getenv("SNFS_FS_PORT"), 10, 16)
+		port, err := strconv.ParseInt(server.GetGlobals().Get("SNFS_FS_PORT￿"), 10, 16)
 		if err != nil || port == 0 {
 			util.Respond(res, util.Message(http.StatusInternalServerError, "SNFS_FS_PORT Environment Variable Not Set"))
 			return

@@ -2,13 +2,11 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"github.com/alabianca/gokad"
 	"log"
 	"os"
 	"os/signal"
 	"strconv"
-	"strings"
 	"syscall"
 
 	"github.com/alabianca/snfs/snfs/kad"
@@ -26,40 +24,38 @@ import (
 
 const topLevelDomain = ".snfs.com"
 
-var cport int
-var dport int
+var cport *int
+var dport *int
+var fport *int
+func init() {
+	cport = flag.Int("cport", 4200, "Gateway port. Clis and other applications may connect to it")
+	dport = flag.Int("dport", 5050, "This port listens to mdns and kademlia packets")
+	fport = flag.Int("fport", 7000, "The file server lives at this port")
+}
 
 func main() {
 	myIP, err := util.MyIP("ipv4")
-	// SNFS_CLIENT_CONNECTIVITY_PORT: Clis and other client applications connect to it
-	cport = getPort("SNFS_CLIENT_CONNECTIVITY", 4200)
-	// SNFS_DISCOVERY_PORT: This is the port is used to listen to discovery udp packets
-	dport = getPort("SNFS_DISCOVERY", 5050)
-
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	if err := util.SetEnv("SNFS_HOST", myIP.String()); err != nil {
-		log.Fatal(err)
-	}
-
 	flag.Parse()
+	server.GetGlobals().Set("SNFS_CLIENT_CONNECTIVITY", strconv.Itoa(*cport))
+	server.GetGlobals().Set("SNFS_DISCOVERY_PORT", strconv.Itoa(*dport))
+	server.GetGlobals().Set("SNFS_FS_PORT", strconv.Itoa(*fport))
+	server.GetGlobals().Set("SNFS_HOST", myIP.String())
+
+
 	done := make(chan os.Signal, 1)
 	serverExit := make(chan error)
-
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
-	srv := server.New(dport, myIP.String())
-
+	// create a server instance
+	srv := server.New(*dport, myIP.String())
 	// initialize global queue channel
 	server.InitQueue(server.NumServices)
 
-	services := resolveServices(srv)
-	for _, service := range services {
-		srv.RegisterService(service)
-	}
-
+	services := registerServices(srv)
 	go func() {
 		serverExit <- srv.Run()
 	}()
@@ -67,10 +63,10 @@ func main() {
 	// start the storage service immediately
 	ss, _ := services[fs.ServiceName]
 	startService(ss)
-
 	// start the client connectivity service immediately
 	cc, _ := services[client.ServiceName]
 	startService(cc)
+
 
 	select {
 	case <-done:
@@ -80,6 +76,15 @@ func main() {
 		os.Exit(0)
 	}
 
+}
+
+func registerServices(server *server.Server) map[string]server.Service {
+	services := resolveServices(server)
+	for _, s := range services {
+		server.RegisterService(s)
+	}
+
+	return services
 }
 
 func startService(s server.Service) {
@@ -98,7 +103,7 @@ func resolveServices(s *server.Server) map[string]server.Service {
 	storage := fs.NewManager()
 	dm := discovery.NewManager(discovery.MdnsStrategy(configureMDNS(s.Port, s.Addr, rpc.ID())))
 	cc := client.NewConnectivityService(dm, storage, rpc)
-	cc.SetAddr("", cport)
+	cc.SetAddr("", *cport)
 
 	services := map[string]server.Service{
 		rpc.Name():     rpc,
@@ -121,23 +126,4 @@ func configureMDNS(port int, address, id string) discovery.Option {
 		m.SetPort(port)
 		m.SetText(text)
 	}
-}
-
-func splitFromTopLevelDomain(instance string) (string, error) {
-	if !strings.Contains(instance, topLevelDomain) {
-		return "", fmt.Errorf("Instance does not contain top level domain")
-	}
-	split := strings.Split(instance, topLevelDomain)
-
-	return split[0], nil
-}
-
-func getPort(prefix string, def int) int {
-	p := os.Getenv(prefix + "_PORT")
-	port, err := strconv.ParseInt(p, 10, 16)
-	if err != nil {
-		return def
-	}
-
-	return int(port)
 }

@@ -18,8 +18,10 @@ const StorageManager = "StorageManager"
 var queue chan ServiceRequest
 var onceQueue sync.Once
 var onceInstance sync.Once
+var onceGlobals sync.Once
 var serverInstance *Server
 var mtx = sync.Mutex{}
+var globals Globals
 
 type OP int
 type ResponseCode int
@@ -71,6 +73,23 @@ type serviceEntry struct {
 	service Service
 }
 
+type Globals map[string]string
+func (g Globals) Get(key string) string {
+	return g[key]
+}
+func (g Globals) Set(key, val string) {
+	g[key] = val
+}
+
+
+func GetGlobals() Globals {
+	onceGlobals.Do(func() {
+		globals = make(Globals)
+	})
+
+	return globals
+}
+
 type Service interface {
 	Run() error
 	Shutdown() error
@@ -78,6 +97,7 @@ type Service interface {
 	Name() string
 }
 
+// Server manages a set of services stored in the services map
 type Server struct {
 	Port int
 	Addr string

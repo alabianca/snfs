@@ -13,6 +13,7 @@ import (
 	"github.com/alabianca/snfs/util"
 
 	"github.com/mitchellh/go-homedir"
+	globalServer "github.com/alabianca/snfs/snfs/server"
 )
 
 const ServiceName = "StorageManager"
@@ -116,12 +117,12 @@ func (m *Manager) Run() error {
 		return err
 	}
 
-	port, err := strconv.ParseInt(os.Getenv("SNFS_FS_PORT"), 10, 16)
+	port, err := strconv.ParseInt(globalServer.GetGlobals().Get("SNFS_FS_PORT"), 10, 16)
 	if err != nil {
 		return err
 	}
 	m.fileServer = &server{
-		addr: os.Getenv("SNFS_HOST"),
+		addr: globalServer.GetGlobals().Get("SNFS_HOST"),
 		port: int(port),
 	}
 
