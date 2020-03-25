@@ -30,7 +30,7 @@ var fport *int
 func init() {
 	cport = flag.Int("cport", 4200, "Gateway port. Clis and other applications may connect to it")
 	dport = flag.Int("dport", 5050, "This port listens to mdns and kademlia packets")
-	fport = flag.Int("fport", 7000, "The file server lives at this port")
+	fport = flag.Int("fport", 7000, "The file snfsd lives at this port")
 }
 
 func main() {
@@ -50,7 +50,7 @@ func main() {
 	serverExit := make(chan error)
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
-	// create a server instance
+	// create a snfsd instance
 	srv := server.New(*dport, myIP.String())
 	// initialize global queue channel
 	server.InitQueue(server.NumServices)

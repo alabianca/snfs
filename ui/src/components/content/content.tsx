@@ -1,9 +1,23 @@
 import React from 'react';
 
-const Content = (props: any) => (
-    <div>
-        <p>Here we go</p>
-    </div>
-)
+import {Switch, Route} from 'react-router-dom'
 
-export default Content
+import './content.css'
+import FileDrop from "../filedrop/filedrop";
+
+const Content = () => {
+    return (
+        <div className='content'>
+            <Switch>
+                <Route path="/share">
+                    <div className='filedrop-container'>
+                        <FileDrop/>
+                    </div>
+
+                </Route>
+            </Switch>
+        </div>
+    )
+};
+
+export default Content;

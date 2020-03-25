@@ -1,17 +1,32 @@
 const path = require('path');
-const { app, BrowserWindow, ipcMain } = require('electron')
+const { app, BrowserWindow, ipcMain, Tray } = require('electron')
 
 
-function createWindow () {
+// don't show the app in the dock
+//app.dock.hide();
+let win;
+let tray;
+
+const main = () => {
+  createTray();
+  createWindow();
+};
+
+const createWindow = () => {
   // Create the browser window.
-  let win = new BrowserWindow({
-    width: 800,
-    height: 600,
+  win = new BrowserWindow({
+    width: 320,
+    height: 450,
+    show: false,
     frame: false,
+    fullscreenable: false,
+    resizable: false,
+    transparent: true,
     webPreferences: {
       nodeIntegration: true
     }
-  })
+  });
+
 
   ipcMain.on('window:close', () => win.close());
   ipcMain.on('window:minimize', () => win.minimize());
@@ -20,10 +35,43 @@ function createWindow () {
   win.webContents.openDevTools()
 
   // and load the index.html of the app.
-  win.loadURL('http://localhost:3000')
-  //win.loadURL(path.normalize('file://' + path.join(__dirname, 'build/index.html')))
+  win.loadURL('http://localhost:3000');
+
+  // Hide the window when it loses focus
+  win.on('blur', () => {
+    if (!win.webContents.isDevToolsOpened()) {
+      win.hide();
+    }
+  });
+};
+
+const createTray = () => {
+  tray = new Tray(path.resolve(__dirname, '../public', 'eth.png'));
+  tray.on('click', toggleWindow)
+};
+
+const toggleWindow = () => {
+  win.isVisible() ? win.hide() : showWindow();
+};
+
+const showWindow = () => {
+  const pos = getWindowPosition();
+  win.setPosition(pos.x, pos.y, false);
+  win.show();
+};
+
+const getWindowPosition = () => {
+  const windowBounds = win.getBounds();
+  const trayBounds = tray.getBounds();
+
+  // Center window horizontally below the tray icon
+  const x = Math.round(trayBounds.x + (trayBounds.width / 2) - (windowBounds.width / 2));
+  // Position window 4 pixels vertically below the tray icon
+  const y = Math.round(trayBounds.y + trayBounds.height + 4);
+  return {x: x, y: y}
 }
 
 
 
-app.whenReady().then(createWindow)
+
+app.whenReady().then(main)

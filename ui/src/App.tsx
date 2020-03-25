@@ -1,21 +1,26 @@
 import React from 'react';
-import logo from './logo.svg';
 import './App.css';
-import '../node_modules/bulma/css/bulma.css'
 
-import Layout from './components/layout/Layout';
-import Sidebar from './components/sidebar/sidebar';
-import Content from './components/content/content';
+import {Route, Switch, BrowserRouter as Router, Link} from "react-router-dom";
+import Navbar from "./components/navbar/navbar";
+import Content from "./components/content/content";
 
 function App() {
+
+
   return (
     <div className="App">
-      <Layout>
-        <Sidebar/>
-        <Content/>
-      </Layout>
+      <Router>
+          <Navbar/>
+          <Content/>
+      </Router>
     </div>
   );
 }
+
+type AppState = {
+    route: string,
+}
+
 
 export default App;

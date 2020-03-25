@@ -1,13 +1,4 @@
 :root {
-  --light-theme-bg: #ffffff;
-  --light-theme-border: #EEEEEE;
-  --light-theme-font-color: #455A64;
-}
-
-.App {
-  background-color: var(--light-theme-bg);
-}
-
-.level.with-pad {
-  padding: 0 5px;
+  --primary-color: #1A237E;
+  --primary-font-color: #757575;
 }
