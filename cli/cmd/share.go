@@ -4,13 +4,13 @@ import (
 	"compress/gzip"
 	"crypto/sha1"
 	"fmt"
+	"github.com/alabianca/snfs/cli"
 	"log"
 	"os"
 	"time"
 
 	"github.com/alabianca/spin"
 
-	"github.com/alabianca/snfs/cli/services"
 	"github.com/alabianca/snfs/util"
 
 	"github.com/spf13/cobra"
@@ -55,7 +55,7 @@ func runShare(uploadCntx, fname string) error {
 
 	spinner := spin.NewSpinner(spin.Dots2, os.Stdout)
 	errChan := make(chan error)
-	res := make(chan services.StoreResult)
+	res := make(chan cli.StoreResult)
 
 	go initSpinnerWithText(spinner, fmt.Sprintf("Sharing -> %s", uploadCntx))
 	go upload(errChan, res, fname, uploadCntx)
@@ -78,8 +78,8 @@ func runShare(uploadCntx, fname string) error {
 
 }
 
-func upload(errChan chan error, chanSuccess chan services.StoreResult, fname, uploadCntx string) {
-	storage := services.NewStroageService()
+func upload(errChan chan error, chanSuccess chan cli.StoreResult, fname, uploadCntx string) {
+	storage := cli.NewStroageService()
 
 	if fname == "" {
 		if bts, err := hashContents(uploadCntx); err != nil {
@@ -111,7 +111,7 @@ func hashContents(uploadCntxt string) ([]byte, error) {
 
 }
 
-func printUploadResult(res services.StoreResult) {
+func printUploadResult(res cli.StoreResult) {
 	fmt.Println()
 	fmt.Println(White("Success"))
 	fmt.Println()

@@ -15,7 +15,15 @@ func (n *NodeService) Create(nc *snfsd.NodeConfiguration) error {
 		return err
 	}
 
-	return n.publish(nc)
+	return n.publish(snfsd.TopicAddNode, nc)
+}
+
+func (n *NodeService) Update(nc snfsd.NodeConfiguration) error {
+	if err := n.Node.Update(nc); err != nil {
+		return err
+	}
+
+	return n.publish(snfsd.TopicUpdateNode, &nc)
 }
 
 func (n *NodeService) Delete(id int) error {
@@ -27,17 +35,17 @@ func (n *NodeService) Delete(id int) error {
 		ProcessId: id,
 	}
 
-	return n.publish(&nc)
+	return n.publish(snfsd.TopicDeleteNode, &nc)
 	
 }
 
-func (n *NodeService) publish(data interface{}) error {
+func (n *NodeService) publish(topic string, data interface{}) error {
 	buf := new(bytes.Buffer)
 	if err := snfsd.Encode(buf, data); err != nil {
 		return err
 	}
 
-	n.Publisher.Publish(snfsd.TopicAddNode, buf.Bytes())
+	n.Publisher.Publish(topic, buf.Bytes())
 
 	return nil
 }

@@ -2,12 +2,11 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/alabianca/snfs/cli"
 	"log"
 	"os"
 
 	"github.com/alabianca/spin"
-
-	"github.com/alabianca/snfs/cli/services"
 
 	"github.com/spf13/cobra"
 )
@@ -49,7 +48,7 @@ func runClone(fileHash string) {
 }
 
 func clone(fileHash string, success chan bool, errc chan error) {
-	storageService := services.NewStroageService()
+	storageService := cli.NewStroageService()
 	if err := storageService.Download(fileHash); err != nil {
 		errc <- err
 		return

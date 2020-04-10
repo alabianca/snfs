@@ -1,30 +1,32 @@
-package fs
+package writer
 
 import (
+	"crypto/sha1"
 	"hash"
 	"io"
 )
 
-type StorageWriter interface {
+type Writer interface {
 	io.Closer
 	hash.Hash
 }
 
-func NewWriter(hash hash.Hash, writer io.WriteCloser) StorageWriter {
-	return newWriter(hash, writer)
+func New(writer io.WriteCloser) Writer {
+	return newWriter(writer)
 }
 
 type writer struct {
-	hash   hash.Hash
-	file   io.WriteCloser
+	hash hash.Hash
+	file io.WriteCloser
 	writer io.Writer
 }
 
-func newWriter(hash hash.Hash, file io.WriteCloser) *writer {
+func newWriter(file io.WriteCloser) *writer {
+	h := sha1.New()
 	return &writer{
-		hash:   hash,
+		hash:   h,
 		file:   file,
-		writer: io.MultiWriter(file, hash),
+		writer: io.MultiWriter(file, h),
 	}
 }
 

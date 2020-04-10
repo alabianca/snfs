@@ -1,4 +1,4 @@
-package services
+package cli
 
 import (
 	"bytes"
@@ -7,28 +7,6 @@ import (
 	"io"
 	"net/http"
 )
-
-type subscriptionRequest struct {
-	Instance string `json:"instance"`
-}
-
-type subscriptionResponse struct {
-	Status  int    `json:"status"`
-	Message string `json:"message"`
-}
-
-type Node struct {
-	InstanceName string `json:"name"`
-	ID           string `json:"id"`
-	Port         int64  `json:"port"`
-	Address      string `json:"address"`
-}
-
-type instancesResponse struct {
-	Instances []Node `json:"data"`
-	Status    int    `json:"status"`
-	Message   string `json:"message"`
-}
 
 type MdnsService struct {
 	api *RestAPI

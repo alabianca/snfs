@@ -2,6 +2,7 @@ package watchdog
 
 import (
 	"errors"
+	"io"
 	"log"
 	"os/exec"
 	"strings"
@@ -13,7 +14,6 @@ type process struct {
 	running bool
 	cport string
 	dport string
-	fport string
 	name string
 	command *exec.Cmd
 }
@@ -40,14 +40,14 @@ func (p *process) run() chan *process {
 
 	return out
 }
-func Process(name string, opt options) *process {
+func Process(name string, opt options, writer io.Writer) *process {
 	log.Printf("snfsd_node %v\n", opt)
 	cmd := exec.Command("snfsd_node", opt.Args()...)
+	cmd.Stdout = writer
 
 	return &process{
 		cport:   opt["-cport"],
 		dport:   opt["-dport"],
-		fport:   opt["-fport"],
 		name:    name,
 		command: cmd,
 	}

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/alabianca/snfs/snfsd"
+	"io"
 	"log"
 	"strconv"
 	"sync"
@@ -15,14 +16,16 @@ type watchdog struct {
 	closed bool
 	mtx sync.RWMutex
 	pubsub snfsd.PubSub
+	writer io.Writer
 }
 
-func New(pubsub snfsd.PubSub) snfsd.Watchdog {
+func New(pubsub snfsd.PubSub, logDigester io.Writer) snfsd.Watchdog {
 	return &watchdog{
 		exit:   make(chan struct{}),
 		closed: false,
 		mtx:    sync.RWMutex{},
 		pubsub: pubsub,
+		writer: logDigester,
 	}
 }
 
@@ -40,12 +43,19 @@ func (m *watchdog) Watch() {
 }
 
 func (m *watchdog) Close() {
+	log.Println("Closing Watchdog")
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 	if !m.closed {
 		m.closed = true
 		close(m.exit)
 	}
+}
+
+func (m *watchdog) Write(p []byte) (int, error) {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+	return m.writer.Write(p)
 }
 
 func (m *watchdog) startProcReq() chan startProcessRequest {
@@ -59,8 +69,7 @@ func (m *watchdog) startProcReq() chan startProcessRequest {
 				opt := make(options)
 				opt["-cport"] = strconv.Itoa(conf.Cport)
 				opt["-dport"] = strconv.Itoa(conf.Dport)
-				opt["-fport"] = strconv.Itoa(conf.Fport)
-				out <- startProcessRequest{process:Process(conf.Name, opt), errc: make(chan error, 1)}
+				out <- startProcessRequest{process:Process(conf.Name, opt, m), errc: make(chan error, 1)}
 			}
 		}
 	}()
@@ -73,7 +82,10 @@ func (m *watchdog) collect(done chan struct{}, queue chan startProcessRequest) c
 	out := make(chan *process)
 
 	go func() {
-		defer close(out)
+		defer func() {
+			log.Printf("Closing Collect")
+			close(out)
+		}()
 		nodes := getNodes()
 
 		for {
@@ -85,6 +97,7 @@ func (m *watchdog) collect(done chan struct{}, queue chan startProcessRequest) c
 			case req := <- queue:
 				if !nodes.push(req.process) {
 					req.errc <- errors.New("Already exists")
+					break
 				}
 
 				out <- req.process
@@ -102,11 +115,14 @@ func (m *watchdog) startProcesses(p chan *process) chan chan *process {
 	running := make(chan chan *process)
 
 	go func() {
-		defer close(running)
+		defer func() {
+			log.Printf("Closing start processes")
+			close(running)
+		}()
 		for proc := range p {
 			go func(proc *process, n *nodes) {
 				n.update(proc.name, toggleRunning(true))
-
+				// run the process
 				running <- proc.run()
 
 			}(proc, getNodes())
@@ -119,11 +135,15 @@ func (m *watchdog) startProcesses(p chan *process) chan chan *process {
 func (m *watchdog) monitor(in chan chan *process) chan *process {
 	out := make(chan *process)
 	go func() {
-		defer close(out)
-
+		defer func() {
+			log.Printf("Closing Monitor")
+			close(out)
+		}()
+		// monitor the running processes
 		for runningProc := range in {
 			go func(c chan *process) {
 				p := <- runningProc
+				// the process exited
 				out <- p
 			}(runningProc)
 		}
@@ -135,15 +155,21 @@ func (m *watchdog) monitor(in chan chan *process) chan *process {
 func (m *watchdog) kill(in chan *process) {
 	n := getNodes()
 	for p := range in {
-		log.Printf("Process %d killed (%s)\n", p.id(), p.name)
+		log.Printf("Update %d\n", p.id())
 		n.update(p.name, toggleRunning(false))
+		log.Printf("Process %d killed (%s)\n", p.id(), p.name)
 	}
 
-	// make sure any nodes that may still be running must be stopped
+	// make sure any nodes that may still be running must be stopped to prevent run away processes
+	log.Printf("Checking for runaway processes\n")
 	n.foreach(func(p *process, i int) {
 		if p.running {
+			log.Printf("Killing Potential Run away process %d\n", p.id())
 			p.kill()
+			log.Printf("Killed\n")
 			p.running = false
+		} else {
+			log.Printf("Process %d already exited\n", p.id())
 		}
 	})
 }

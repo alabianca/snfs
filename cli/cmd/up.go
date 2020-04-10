@@ -2,9 +2,9 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/alabianca/snfs/cli"
 	"log"
 
-	"github.com/alabianca/snfs/cli/services"
 	"github.com/spf13/cobra"
 )
 
@@ -21,7 +21,7 @@ var upCmd = &cobra.Command{
 			log.Fatal("Please provide instance")
 		}
 
-		mdns := services.NewMdnsService()
+		mdns := cli.NewMdnsService()
 		status, err := mdns.Register(args[0])
 		if err != nil {
 			fmt.Println(err)

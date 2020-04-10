@@ -1,27 +1,46 @@
 package main
 
 import (
+	"bufio"
 	"database/sql"
-	_ "github.com/mattn/go-sqlite3"
+	"fmt"
 	"github.com/alabianca/snfs/snfsd"
+	"github.com/alabianca/snfs/snfsd/http"
 	"github.com/alabianca/snfs/snfsd/http/chi"
 	"github.com/alabianca/snfs/snfsd/node"
 	"github.com/alabianca/snfs/snfsd/pubsub"
 	"github.com/alabianca/snfs/snfsd/server"
 	"github.com/alabianca/snfs/snfsd/sqlite"
 	"github.com/alabianca/snfs/snfsd/watchdog"
-	"github.com/alabianca/snfs/snfsd/http"
+	_ "github.com/mattn/go-sqlite3"
+	"github.com/mitchellh/go-homedir"
+	"io"
 	"log"
 	"os"
 	"os/signal"
+	"path"
+	"strconv"
 	"syscall"
 )
 
 
 func main() {
 	db := getDB()
+	defer db.Close()
 	ps := pubsub.NewPubSub()
-	wd := watchdog.New(ps)
+
+	pr, pw := io.Pipe()
+
+	wd := watchdog.New(ps, pw)
+
+	go func() {
+		for {
+			reader := bufio.NewReader(pr)
+			line, _, _ := reader.ReadLine()
+			fmt.Println("---------------")
+			fmt.Println(string(line))
+		}
+	}()
 
 	nodeDal := sqlite.Node{DB: db}
 	nodeService := node.NodeService{
@@ -39,7 +58,7 @@ func main() {
 		Watchdog: wd,
 		Handler:  http.App(&appCtx, chi.Routes),
 		Host:     "",
-		Port:     8080,
+		Port:     getPort(8080),
 	}
 
 	exit := make(chan struct{})
@@ -57,11 +76,27 @@ func main() {
 	}
 }
 
-func getDB() *sql.DB {
-	db, err := sql.Open("sqlite3", "./test.db")
+func getDB() (*sql.DB) {
+	home, err := homedir.Dir()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	dbDir := path.Join(home, ".snfs", "snfs.db")
+
+	db, err := sql.Open("sqlite3", dbDir)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	return db
+}
+
+func getPort(def int) int {
+	port, err := strconv.ParseInt(os.Getenv("SNFSD_PORT"), 10, 16)
+	if err != nil || port == 0 {
+		return def
+	}
+
+	return int(port)
 }

@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/alabianca/snfs/cli/services"
+	"github.com/alabianca/snfs/cli"
 	"github.com/spf13/cobra"
 	"log"
 	"os"
@@ -18,7 +18,7 @@ var kadnetStatusCmd = &cobra.Command{
 	Short: "Get the status of your DHT.",
 	Long:  `Prints a snapshot of the DHT`,
 	Run: func(cmd *cobra.Command, args []string) {
-		kad := services.NewKadnetService()
+		kad := cli.NewKadnetService()
 		entries, err := kad.GetStatus()
 		if err != nil {
 			log.Fatalf("Error %s\n", err)

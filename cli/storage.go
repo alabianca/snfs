@@ -1,4 +1,4 @@
-package services
+package cli
 
 import (
 	"bytes"
@@ -14,18 +14,6 @@ import (
 
 	"github.com/alabianca/snfs/util"
 )
-
-type storageResponse struct {
-	Status  int                    `json:"status"`
-	Message string                 `json:"message"`
-	Content StoreResult `json:"data"`
-}
-
-type StoreResult struct {
-	Hash         string `json:"hash"`
-	BytesWritten int64  `json:"bytesWritten"`
-	Took         time.Duration
-}
 
 type StorageService struct {
 	api *RestAPI

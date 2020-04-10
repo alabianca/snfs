@@ -1,30 +1,9 @@
-package services
+package cli
 
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/alabianca/gokad"
 )
-
-type boostrapRequest struct {
-	Address string `json:"address"`
-	Port    int    `json:"port"`
-}
-
-type KadnetStatusResponse struct {
-	Status  int                 `json:"status"`
-	Message string              `json"message"`
-	Entries []RoutingTableEntry `json:"data"`
-}
-
-type RoutingTableEntry struct {
-	BucketIndex int        `json:"bucketIndex"`
-	Contact     gokad.Contact `json:"contact"`
-}
-
-type KadnetService struct {
-	api *RestAPI
-}
 
 func NewKadnetService() *KadnetService {
 	return &KadnetService{

@@ -2,12 +2,11 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/alabianca/snfs/cli"
 	"os"
 	"os/signal"
 	"syscall"
 	"text/tabwriter"
-
-	"github.com/alabianca/snfs/cli/services"
 
 	"github.com/alabianca/spin"
 	"github.com/spf13/cobra"
@@ -29,7 +28,7 @@ var lsCmd = &cobra.Command{
 
 func runLs() {
 	sig := make(chan os.Signal, 1)
-	browser := make(chan []services.Node)
+	browser := make(chan []cli.Node)
 	errChan := make(chan error)
 	signal.Notify(sig, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	spinner := spin.NewSpinner(spin.Dots2, os.Stdout)
@@ -54,7 +53,7 @@ func printError(err error) {
 	fmt.Printf("[Error]: %s\n", err)
 }
 
-func printBrowseResults(instances []services.Node) {
+func printBrowseResults(instances []cli.Node) {
 	fmt.Printf("Found %d Result(s)\n", len(instances))
 	fmt.Println()
 	writer := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', tabwriter.Debug)
@@ -71,8 +70,8 @@ func initSpinnerWithText(spinner spin.Spinner, text string) {
 	spinner.Start()
 }
 
-func browse(done chan []services.Node, errChan chan error) {
-	mdns := services.NewMdnsService()
+func browse(done chan []cli.Node, errChan chan error) {
+	mdns := cli.NewMdnsService()
 	instances, err := mdns.Browse()
 	if err != nil {
 		errChan <- err

@@ -1,14 +1,17 @@
 
 install: deps
-	go install cli/snfs.go
-	go install snfs/main/snfsd_node.go
-	go install server/snfsd.go
+	go install ./cmd/snfs/main.go
+	go install ./cmd/snfsd/main.go
+	go install ./cmd/snfsd_node/main.go
 
-server: deps
-	go build -o bin/snfsd_node ./snfs/main/
+snfs_node: deps
+	go build -o bin/snfsd_node ./cmd/snfs_node
+
+snfsd: deps
+	go build -o bin/snfsd ./cmd/snfsd/
 
 cli: deps
-	go build -o bin/snfs ./cli/
+	go build -o bin/snfs ./cmd/snfs/
 
 deps:
 	go get -v ./...
