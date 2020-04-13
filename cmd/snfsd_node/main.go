@@ -22,7 +22,7 @@ var (
 )
 
 const (
-	tag = "main"
+	tag = "node"
 )
 
 func init() {
